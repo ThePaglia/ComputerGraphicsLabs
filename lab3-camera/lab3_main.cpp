@@ -42,11 +42,10 @@ GLuint shaderProgram;
 // Scene objects and properties
 ///////////////////////////////////////////////////////////////////////////////
 
-// Models
+// ModelscarModelMatrix
 Model* cityModel = nullptr;
 Model* carModel = nullptr;
 Model* groundModel = nullptr;
-mat4 carModelMatrix(1.0f);
 
 vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
 
@@ -132,15 +131,24 @@ void display()
 
 	// Set up model matrices
 	mat4 cityModelMatrix(1.0f);
+	mat4 carModelMatrix = T * R;
+	mat4 automaticCarModelMatrix(1.0f);
 
 	// Set up the view matrix
 	// The view matrix defines where the viewer is looking
 	// Initially fixed, but will be replaced in the tutorial.
-	mat4 constantViewMatrix = mat4(0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f,  //
-		0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,   //
-		-0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
-		0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);  //
-	mat4 viewMatrix = constantViewMatrix;
+	//mat4 constantViewMatrix = mat4(0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f,  //
+	//	0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,   //
+	//	-0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
+	//	0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);  //
+
+	// use camera direction as -z axis and compute the x (cameraRight) and y (cameraUp) base vectors
+	vec3 cameraRight = normalize(cross(cameraDirection, worldUp));
+	vec3 cameraUp = normalize(cross(cameraRight, cameraDirection));
+
+	mat3 cameraBaseVectorsWorldSpace(cameraRight, cameraUp, -cameraDirection);
+	mat4 cameraRotation = mat4(transpose(cameraBaseVectorsWorldSpace));
+	mat4 viewMatrix = cameraRotation * translate(-cameraPosition);
 
 	// Setup the projection matrix
 	if (w != old_w || h != old_h)
@@ -165,12 +173,24 @@ void display()
 
 	// Ground
 	// Task 5: Uncomment this
-	//drawGround(modelViewProjectionMatrix);
+	drawGround(modelViewProjectionMatrix);
 
-	// car
+	// Car
 	modelViewProjectionMatrix = projectionMatrix * viewMatrix * carModelMatrix;
 	glUniformMatrix4fv(mvploc, 1, false, &modelViewProjectionMatrix[0].x);
 	glUniformMatrix4fv(mloc, 1, false, &carModelMatrix[0].x);
+	render(carModel);
+
+	// Automatic car
+	mat4 r = glm::rotate(float(-currentTime), vec3(0.0f, 1.0f, 0.0f));
+	mat4 t = glm::translate(vec3(20.0f, 0.0f, 0.0f));
+	mat4 t2 = glm::translate(vec3(r * vec4(10.0f, 0.0f, 0.0f, 0.0f)));
+
+	automaticCarModelMatrix = t * t2 * r;
+
+	modelViewProjectionMatrix = projectionMatrix * viewMatrix * automaticCarModelMatrix;
+	glUniformMatrix4fv(mvploc, 1, false, &modelViewProjectionMatrix[0].x);
+	glUniformMatrix4fv(mloc, 1, false, &automaticCarModelMatrix[0].x);
 	render(carModel);
 
 	glUseProgram(0);
@@ -226,7 +246,10 @@ bool handleEvents(void)
 			int delta_y = event.motion.y - g_prevMouseCoords.y;
 			if (event.button.button == SDL_BUTTON_LEFT)
 			{
-				printf("Mouse motion while left button down (%i, %i)\n", event.motion.x, event.motion.y);
+				float rotationSpeed = 0.005f;
+				mat4 yaw = rotate(rotationSpeed * -delta_x, worldUp);
+				mat4 pitch = rotate(rotationSpeed * -delta_y, normalize(cross(cameraDirection, worldUp)));
+				cameraDirection = vec3(pitch * yaw * vec4(cameraDirection, 0.0f));
 			}
 			g_prevMouseCoords.x = event.motion.x;
 			g_prevMouseCoords.y = event.motion.y;
@@ -252,6 +275,75 @@ bool handleEvents(void)
 	if (state[SDL_SCANCODE_RIGHT])
 	{
 		printf("Key Right is pressed down\n");
+	}
+	if (state[SDL_SCANCODE_W])
+	{
+		printf("Key W is pressed down\n");
+	}
+	if (state[SDL_SCANCODE_S])
+	{
+		printf("Key A is pressed down\n");
+	}
+	if (state[SDL_SCANCODE_A])
+	{
+		printf("Key A is pressed down\n");
+	}
+	if (state[SDL_SCANCODE_D])
+	{
+		printf("Key D is pressed down\n");
+	}
+
+	// implement controls based on key states
+	const float speed = 10.f;
+	const float rotateSpeed = 3.0f;
+	const float cameraSpeed = 5.0f;
+	vec3 car_forward = vec3(0, 0, 1);
+	car_forward = vec3(R * vec4(car_forward, 0));
+	// First Person Camera in the car
+	cameraPosition = vec3(T * R * vec4(0.0f, 5.0f, -10.0f, 1.0f));
+	cameraDirection = vec3(R * vec4(0.0f, -0.25f, 1.0f, 1.0f));
+
+	if (!ImGui::GetIO().WantCaptureKeyboard) { // TODO: Ask what this line does
+		if (state[SDL_SCANCODE_UP])
+		{
+			T = translate(car_forward * speed * deltaTime) * T;
+		}
+		if (state[SDL_SCANCODE_DOWN])
+		{
+			T = translate(-car_forward * speed * deltaTime) * T;
+		}
+		if (state[SDL_SCANCODE_LEFT])
+		{
+			R = rotate(rotateSpeed * deltaTime, glm::vec3(0, 1, 0)) * R;
+		}
+		if (state[SDL_SCANCODE_RIGHT])
+		{
+			R = rotate(-rotateSpeed * deltaTime, glm::vec3(0, 1, 0)) * R;
+		}
+		if (state[SDL_SCANCODE_W])
+		{
+			cameraPosition += cameraDirection * cameraSpeed * deltaTime;
+		}
+		if (state[SDL_SCANCODE_S])
+		{
+			cameraPosition -= cameraDirection * cameraSpeed * deltaTime;
+		}
+		if (state[SDL_SCANCODE_A])
+		{
+			cameraPosition -= normalize(cross(cameraDirection, worldUp)) * cameraSpeed * deltaTime;
+		}
+		if (state[SDL_SCANCODE_D])
+		{
+			cameraPosition += normalize(cross(cameraDirection, worldUp)) * cameraSpeed * deltaTime;
+		}
+		if (state[SDL_SCANCODE_SPACE])
+		{
+			cameraPosition += worldUp * cameraSpeed * deltaTime;
+		}
+		if (state[SDL_SCANCODE_LCTRL])
+		{
+			cameraPosition -= worldUp * cameraSpeed * deltaTime;
+		}
 	}
 
 	return quitEvent;
