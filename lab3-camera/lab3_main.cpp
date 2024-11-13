@@ -1,4 +1,3 @@
-
 #include <GL/glew.h>
 
 #include <sstream>
@@ -34,12 +33,10 @@ float currentTime = 0.0f;
 float deltaTime = 0.0f;
 bool showUI = false;
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Shader programs
 ///////////////////////////////////////////////////////////////////////////////
 GLuint shaderProgram;
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Scene objects and properties
@@ -70,7 +67,6 @@ PerspectiveParams pp = { 45.0f, 1280, 720, 0.1f, 300.0f };
 int old_w = 1280;
 int old_h = 720;
 
-
 ///////////////////////////////////////////////////////////////////////////
 // Load models (both vertex buffers and textures).
 ///////////////////////////////////////////////////////////////////////////
@@ -80,7 +76,6 @@ void loadModels()
 	carModel = loadModelFromOBJ("../scenes/car.obj");
 	groundModel = loadModelFromOBJ("../scenes/ground_plane.obj");
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is called once at the start of the program and never again
@@ -107,7 +102,6 @@ void drawGround(mat4 mvpMatrix)
 	render(groundModel);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// This function will be called once per frame, so the code to set up
 /// the scene for rendering should go here
@@ -118,7 +112,7 @@ void display()
 	int w, h;
 	SDL_GetWindowSize(g_window, &w, &h);
 
-	if(pp.w != old_w || pp.h != old_h)
+	if (pp.w != old_w || pp.h != old_h)
 	{
 		SDL_SetWindowSize(g_window, pp.w, pp.h);
 		w = pp.w;
@@ -143,13 +137,13 @@ void display()
 	// The view matrix defines where the viewer is looking
 	// Initially fixed, but will be replaced in the tutorial.
 	mat4 constantViewMatrix = mat4(0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f,  //
-	                               0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,   //
-	                               -0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
-	                               0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);  //
+		0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,   //
+		-0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
+		0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);  //
 	mat4 viewMatrix = constantViewMatrix;
 
 	// Setup the projection matrix
-	if(w != old_w || h != old_h)
+	if (w != old_w || h != old_h)
 	{
 		pp.h = h;
 		pp.w = w;
@@ -157,7 +151,6 @@ void display()
 		old_h = h;
 	}
 	mat4 projectionMatrix = perspective(radians(pp.fov), float(pp.w) / float(pp.h), pp.near, pp.far);
-
 
 	const int mvploc = glGetUniformLocation(shaderProgram, "modelViewProjectionMatrix");
 	const int mloc = glGetUniformLocation(shaderProgram, "modelMatrix");
@@ -180,10 +173,8 @@ void display()
 	glUniformMatrix4fv(mloc, 1, false, &carModelMatrix[0].x);
 	render(carModel);
 
-
 	glUseProgram(0);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is used to update the scene according to user input
@@ -194,26 +185,26 @@ bool handleEvents(void)
 	SDL_Event event;
 	bool quitEvent = false;
 
-	while(SDL_PollEvent(&event))
+	while (SDL_PollEvent(&event))
 	{
 		// Allow ImGui to capture events.
 		ImGui_ImplSdlGL3_ProcessEvent(&event);
 
 		// More info at https://wiki.libsdl.org/SDL_Event
-		if(event.type == SDL_QUIT || (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE))
+		if (event.type == SDL_QUIT || (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE))
 		{
 			quitEvent = true;
 		}
-		else if(event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_g)
+		else if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_g)
 		{
 			showUI = !showUI;
 		}
-		else if(event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_PRINTSCREEN)
+		else if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_PRINTSCREEN)
 		{
 			labhelper::saveScreenshot();
 		}
-		else if(event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT
-		        && !(ImGui::GetIO().WantCaptureMouse))
+		else if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT
+			&& !(ImGui::GetIO().WantCaptureMouse))
 		{
 			g_isMouseDragging = true;
 			int x;
@@ -223,17 +214,17 @@ bool handleEvents(void)
 			g_prevMouseCoords.y = y;
 		}
 
-		if(!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)))
+		if (!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)))
 		{
 			g_isMouseDragging = false;
 		}
 
-		if(event.type == SDL_MOUSEMOTION && g_isMouseDragging && !(ImGui::GetIO().WantCaptureMouse))
+		if (event.type == SDL_MOUSEMOTION && g_isMouseDragging && !(ImGui::GetIO().WantCaptureMouse))
 		{
 			// More info at https://wiki.libsdl.org/SDL_MouseMotionEvent
 			int delta_x = event.motion.x - g_prevMouseCoords.x;
 			int delta_y = event.motion.y - g_prevMouseCoords.y;
-			if(event.button.button == SDL_BUTTON_LEFT)
+			if (event.button.button == SDL_BUTTON_LEFT)
 			{
 				printf("Mouse motion while left button down (%i, %i)\n", event.motion.x, event.motion.y);
 			}
@@ -246,26 +237,25 @@ bool handleEvents(void)
 	const uint8_t* state = SDL_GetKeyboardState(nullptr);
 
 	// implement camera controls based on key states
-	if(state[SDL_SCANCODE_UP])
+	if (state[SDL_SCANCODE_UP])
 	{
 		printf("Key Up is pressed down\n");
 	}
-	if(state[SDL_SCANCODE_DOWN])
+	if (state[SDL_SCANCODE_DOWN])
 	{
 		printf("Key Down is pressed down\n");
 	}
-	if(state[SDL_SCANCODE_LEFT])
+	if (state[SDL_SCANCODE_LEFT])
 	{
 		printf("Key Left is pressed down\n");
 	}
-	if(state[SDL_SCANCODE_RIGHT])
+	if (state[SDL_SCANCODE_RIGHT])
 	{
 		printf("Key Right is pressed down\n");
 	}
 
 	return quitEvent;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is to hold the general GUI logic
@@ -279,7 +269,7 @@ void gui()
 	ImGui::Text("Aspect Ratio: %.2f", float(pp.w) / float(pp.h));
 	ImGui::SliderFloat("Near Plane", &pp.near, 0.1f, 300.0f, "%.2f", 2.f);
 	ImGui::SliderFloat("Far Plane", &pp.far, 0.1f, 300.0f, "%.2f", 2.f);
-	if(ImGui::Button("Reset"))
+	if (ImGui::Button("Reset"))
 	{
 		pp.fov = 45.0f;
 		pp.w = 1280;
@@ -288,10 +278,9 @@ void gui()
 		pp.far = 300.0f;
 	}
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
-	            ImGui::GetIO().Framerate);
+		ImGui::GetIO().Framerate);
 	// ----------------------------------------------------------
 }
-
 
 int main(int argc, char* argv[])
 {
@@ -303,7 +292,7 @@ int main(int argc, char* argv[])
 	bool stopRendering = false;
 	auto startTime = std::chrono::system_clock::now();
 
-	while(!stopRendering)
+	while (!stopRendering)
 	{
 		// update currentTime
 		std::chrono::duration<float> timeSinceStart = std::chrono::system_clock::now() - startTime;
@@ -319,7 +308,7 @@ int main(int argc, char* argv[])
 		display();
 
 		// Render overlay GUI.
-		if(showUI)
+		if (showUI)
 		{
 			gui();
 		}

@@ -78,9 +78,7 @@ void initialize()
 	// Send the vetex position data to the current buffer
 	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(positions) * sizeof(float), positions,
 		GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 	glVertexAttribPointer(0, 3, GL_FLOAT, false /*normalized*/, 0 /*stride*/, 0 /*offset*/);
-	//glBindBuffer(GL_ARRAY_BUFFER, positionBuffer); // TODO: Ask why it works even without this line
 	// Enable the attribute
 	glEnableVertexAttribArray(0);
 
@@ -105,7 +103,6 @@ void initialize()
 		GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer);
 	glVertexAttribPointer(1, 2, GL_FLOAT, false /*normalized*/, 0 /*stride*/, 0 /*offset*/);
-	//glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer); // TODO: Ask why it works even without this line
 	// Enable the attribute
 	glEnableVertexAttribArray(1);
 
@@ -119,9 +116,8 @@ void initialize()
 	};
 	glGenBuffers(1, &indexBuffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(indices) * sizeof(float), indices,
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(indices) * sizeof(int), indices,
 		GL_STATIC_DRAW);
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer); // TODO: Ask why it works even without this line
 
 	// Task 7
 	glGenVertexArrays(1, &vertexArrayObjectExpl);
@@ -138,7 +134,6 @@ void initialize()
 	glBindBuffer(GL_ARRAY_BUFFER, positionBufferExpl);
 	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(positionsExpl) * sizeof(float), positionsExpl,
 		GL_STATIC_DRAW);
-	//glBindBuffer(GL_ARRAY_BUFFER, positionBufferExpl); // TODO: Ask why it works even without this line
 	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
 	glEnableVertexAttribArray(0);
 
@@ -153,9 +148,8 @@ void initialize()
 	glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferExpl);
 	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(texCoordsExpl) * sizeof(float), texCoordsExpl,
 		GL_STATIC_DRAW);
-	//glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferExpl); // TODO: Ask why it works even without this line
-	glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0); // TODO: Ask why 2 in the solution instead of 1
-	glEnableVertexAttribArray(1); // TODO: Ask why the solution disables 1 and enables 2
+	glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(1);
 
 	const int indicesExpl[] = {
 		// Counter clockwise order for front face
@@ -165,9 +159,8 @@ void initialize()
 
 	glGenBuffers(1, &indexBufferExpl);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferExpl);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(indicesExpl) * sizeof(float), indicesExpl,
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(indicesExpl) * sizeof(int), indicesExpl,
 		GL_STATIC_DRAW);
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferExpl); // TODO: Ask why it works even without this line
 
 	//************************************
 	//			Load Texture
