@@ -184,7 +184,7 @@ void display()
 	// Automatic car
 	mat4 r = glm::rotate(float(-currentTime), vec3(0.0f, 1.0f, 0.0f));
 	mat4 t = glm::translate(vec3(20.0f, 0.0f, 0.0f));
-	mat4 t2 = glm::translate(vec3(r * vec4(10.0f, 0.0f, 0.0f, 0.0f)));
+	mat4 t2 = glm::translate(vec3(r * vec4(10.0f, 0.0f, 0.0f, 1.0f)));
 
 	automaticCarModelMatrix = t * t2 * r;
 
@@ -292,18 +292,18 @@ bool handleEvents(void)
 	{
 		printf("Key D is pressed down\n");
 	}
-
 	// implement controls based on key states
-	const float speed = 10.f;
+	const float speed = 30.f;
 	const float rotateSpeed = 3.0f;
 	const float cameraSpeed = 5.0f;
 	vec3 car_forward = vec3(0, 0, 1);
-	car_forward = vec3(R * vec4(car_forward, 0));
+	car_forward = vec3(R * vec4(car_forward, 1.0f));
+
 	// First Person Camera in the car
 	cameraPosition = vec3(T * R * vec4(0.0f, 5.0f, -10.0f, 1.0f));
 	cameraDirection = vec3(R * vec4(0.0f, -0.25f, 1.0f, 1.0f));
 
-	if (!ImGui::GetIO().WantCaptureKeyboard) { // TODO: Ask what this line does
+	if (!ImGui::GetIO().WantCaptureKeyboard) {
 		if (state[SDL_SCANCODE_UP])
 		{
 			T = translate(car_forward * speed * deltaTime) * T;
