@@ -113,7 +113,7 @@ void main()
 	// Task 1.1 - Fill in the outgoing direction, wo, and the normal, n. Both
 	//            shall be normalized vectors in view-space.
 	///////////////////////////////////////////////////////////////////////////
-	vec3 wo = normalize(viewSpacePosition); // TODO: Ask why it's negative
+	vec3 wo = -normalize(viewSpacePosition); // TODO: Ask why it's negative
 	vec3 n = normalize(viewSpaceNormal);
 
 	vec3 base_color = material_color;
