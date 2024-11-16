@@ -61,12 +61,23 @@ vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 	//            to the light. If the light is backfacing the triangle,
 	//            return vec3(0);
 	///////////////////////////////////////////////////////////////////////////
-
+	// Direction from fragment to light source
+	vec3 wi = normalize(viewSpaceLightPosition - viewSpacePosition);
+	// Distance from fragment to light source
+	const float d = length(wi);
+	// Factor that reduces the intensity of the light source with distance
+	const float falloff_factor = 1.0 / (d * d);
+	// Intensity of the light source
+	vec3 Li = normalize(point_light_intensity_multiplier * point_light_color * falloff_factor);
+	// Check if the light source is backfacing the triangle
+	if (dot(n, wi) < 0.0) {
+		return vec3(0.0);
+	}
 	///////////////////////////////////////////////////////////////////////////
 	// Task 1.3 - Calculate the diffuse term and return that as the result
 	///////////////////////////////////////////////////////////////////////////
-	// vec3 diffuse_term = ...
-
+	vec3 diffuse_term = base_color * (1.0/PI) * dot(n, wi) * Li; // TODO: Ask if length is needed before dot since it's norm two
+	direct_illum = diffuse_term; // TODO: Ask why it's not strong as the pictures
 	///////////////////////////////////////////////////////////////////////////
 	// Task 2 - Calculate the Torrance Sparrow BRDF and return the light
 	//          reflected from that instead
@@ -102,8 +113,8 @@ void main()
 	// Task 1.1 - Fill in the outgoing direction, wo, and the normal, n. Both
 	//            shall be normalized vectors in view-space.
 	///////////////////////////////////////////////////////////////////////////
-	vec3 wo = vec3(0.0);
-	vec3 n = vec3(0.0);
+	vec3 wo = normalize(viewSpacePosition); // TODO: Ask why it's negative
+	vec3 n = normalize(viewSpaceNormal);
 
 	vec3 base_color = material_color;
 	if(has_color_texture == 1)
@@ -124,7 +135,7 @@ void main()
 	///////////////////////////////////////////////////////////////////////////
 	// Task 1.4 - Make glowy things glow!
 	///////////////////////////////////////////////////////////////////////////
-	vec3 emission_term = vec3(0.0);
+	vec3 emission_term = material_emission * material_color; // TODO: Ask if material_color is needed
 
 	vec3 final_color = direct_illumination_term + indirect_illumination_term + emission_term;
 
