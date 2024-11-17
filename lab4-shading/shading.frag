@@ -52,6 +52,42 @@ uniform vec3 viewSpaceLightPosition;
 ///////////////////////////////////////////////////////////////////////////////
 layout(location = 0) out vec4 fragmentColor;
 
+float fresnelFunction(vec3 wi, vec3 wh, float fresnel) {
+	float widotwh = max(0.0001, dot(wi, wh));
+	return fresnel + (1.0 - fresnel) * pow(1.0 - widotwh, 5.0); // TODO: Ask why in their solution it's wo instead of wi
+}
+
+float microfacetDistributeFunction(vec3 n, vec3 wh, float shininess) {
+	float ndotwh = max(0.0001, dot(n, wh));
+	return (shininess + 2.0) / (2.0 * PI) * pow(ndotwh, shininess);
+}
+
+float shadowingFunction(vec3 n, vec3 wh, vec3 wi, vec3 wo) {
+	float ndotwh = max(0.0001, dot(n, wh));
+	float ndotwi = max(0.0001, dot(n, wi));
+	float ndotwo = max(0.0001, dot(n, wo));
+	float wodotwh = max(0.0001, dot(wo, wh));
+	float G1 = 2.0 * ndotwh * ndotwo / wodotwh;
+	float G2 = 2.0 * ndotwh * ndotwi / wodotwh;
+	return min(1.0, min(G1, G2));
+}
+
+float BRDF(vec3 n, vec3 wh, vec3 wi, vec3 wo) {
+	float ndotwi = max(0.0001, dot(n, wi));
+	float ndotwo = max(0.0001, dot(n, wo));
+	float F = fresnelFunction(wi, wh, material_fresnel);
+	float D = microfacetDistributeFunction(n, wh, material_shininess);
+	float G = shadowingFunction(n, wh, wi, wo);
+	return F * D * G / 4.0 * clamp(ndotwi * ndotwo, 0.0001, 1.0); // TODO: Ask why * 4.0, probably intensity
+}
+
+vec3 metalBRDF(vec3 n, vec3 wh, vec3 wi, vec3 wo, float metalness, vec3 color, vec3 Li) {
+	return metalness * BRDF(n, wh, wi, wo) * color * dot(n, wi) * Li + (1.0 - metalness);
+}
+
+vec3 dielectricBRDF(vec3 n, vec3 wh, vec3 wi, vec3 wo, float fresnel, vec3 color, vec3 Li) {
+	return BRDF(n, wh, wi, wo) * dot(n, wi) * Li + (1.0 - fresnel) * color / PI * dot(n, wi) * Li; // TODO: Ask why it's ndotwi and not vec3(1.0) like in the slides
+}
 
 vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 {
@@ -82,10 +118,33 @@ vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 	// Task 2 - Calculate the Torrance Sparrow BRDF and return the light
 	//          reflected from that instead
 	///////////////////////////////////////////////////////////////////////////
-
+	vec3 wh = normalize(wi + wo);
+	direct_illum = BRDF(n, wh, wi, wo) * dot(n, wi) * Li * base_color;
+//	direct_illum = fresnelFunction(wi, wh, material_fresnel) * dot(n, wi) * Li;
+//	direct_illum = microfacetDistributeFunction(n, wh, material_shininess) * dot(n, wi) * Li;
+//	direct_illum = shadowingFunction(n, wh, wi, wo) * dot(n, wi) * Li;
 	///////////////////////////////////////////////////////////////////////////
 	// Task 3 - Make your shader respect the parameters of our material model.
 	///////////////////////////////////////////////////////////////////////////
+//	direct_illum = material_metalness * BRDF(n, wh, wi, wo) * base_color + (1.0 - material_metalness) * BRDF(n, wh, wi, wo) * vec3(1.0) + (1.0 - material_fresnel) * base_color / PI * dot(n, wi) * Li;
+	// TODO: Ask why this version doesn't work properly even tho it's the slides' version
+//	direct_illum = metalBRDF(n, wh, wi, wo, material_metalness, base_color, Li) * dielectricBRDF(n, wh, wi, wo, material_fresnel, base_color, Li);
+	
+	// Tutorial's solution
+	float ndotwh = max(0.0001, dot(n, wh));
+	float ndotwo = max(0.0001, dot(n, wo));
+	float ndotwi = max(0.0001, dot(n, wi));
+	float wodotwh = max(0.0001, dot(wo, wh));
+	float D = ((material_shininess + 2) / (2.0 * PI)) * pow(ndotwh, material_shininess);
+	float G = min(1.0, min(2.0 * ndotwh * ndotwo / wodotwh, 2.0 * ndotwh * ndotwi / wodotwh));
+	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0);
+	float denominator = 4.0 * clamp(ndotwo * ndotwi, 0.0001, 1.0);
+	float brdf = D * F * G / denominator;
+
+	vec3 dielectric_term = brdf * ndotwi * Li + (1.0 - F) * diffuse_term;
+	vec3 metal_term = brdf * base_color * ndotwi * Li;
+	vec3 microfacet_term = material_metalness * brdf * base_color * ndotwi * Li + (1.0 - material_metalness) * dielectric_term;
+	direct_illum = microfacet_term;
 
 	return direct_illum;
 }
@@ -97,11 +156,40 @@ vec3 calculateIndirectIllumination(vec3 wo, vec3 n, vec3 base_color)
 	// Task 5 - Lookup the irradiance from the irradiance map and calculate
 	//          the diffuse reflection
 	///////////////////////////////////////////////////////////////////////////
-
+	// world normal
+	vec3 wn = vec3(viewInverse * vec4(n, 0.0));
+	float theta = acos(max(-1.0f, min(1.0f, wn.y)));
+	float phi = atan(wn.z, wn.x);
+	if(phi < 0.0f)
+	{
+		phi = phi + 2.0f * PI;
+	}
+	vec2 lookup = vec2(phi / (2.0 * PI), 1 - theta / PI);
+	vec3 Li = environment_multiplier * texture(irradianceMap, lookup).rgb;
+	vec3 diffuse_term = base_color * (1.0 / PI) * Li;
+	indirect_illum = diffuse_term;
 	///////////////////////////////////////////////////////////////////////////
 	// Task 6 - Look up in the reflection map from the perfect specular
 	//          direction and calculate the dielectric and metal terms.
 	///////////////////////////////////////////////////////////////////////////
+	vec3 wi = normalize(reflect(-wo, n));
+	vec3 wr = normalize(vec3(viewInverse * vec4(wi, 0.0)));
+	theta = acos(max(-1.0f, min(1.0f, wr.y)));
+	phi = atan(wr.z, wr.x);
+	if(phi < 0.0f)
+		phi = phi + 2.0f * PI;
+	lookup = vec2(phi / (2.0 * PI), 1 - theta / PI);
+	float roughness = sqrt(sqrt(2.0 / (material_shininess + 2.0)));
+	Li = environment_multiplier * textureLod(reflectionMap, lookup, roughness * 7.0).rgb;
+	vec3 wh = normalize(wi + wo);
+	float wodotwh = max(0.0, dot(wo, wh));
+	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0); // TODO: Ask why it's wo instead of wi
+	vec3 dielectric_term = F * Li + (1.0 - F) * diffuse_term;
+	vec3 metal_term = F * base_color * Li;
+
+	vec3 microfacet_term = material_metalness * metal_term + (1.0 - material_metalness) * dielectric_term;
+
+	indirect_illum = microfacet_term;
 
 	return indirect_illum;
 }
