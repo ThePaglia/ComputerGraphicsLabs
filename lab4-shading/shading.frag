@@ -52,43 +52,6 @@ uniform vec3 viewSpaceLightPosition;
 ///////////////////////////////////////////////////////////////////////////////
 layout(location = 0) out vec4 fragmentColor;
 
-float fresnelFunction(vec3 wi, vec3 wh, float fresnel) {
-	float widotwh = max(0.0001, dot(wi, wh));
-	return fresnel + (1.0 - fresnel) * pow(1.0 - widotwh, 5.0); // TODO: Ask why in their solution it's wo instead of wi
-}
-
-float microfacetDistributeFunction(vec3 n, vec3 wh, float shininess) {
-	float ndotwh = max(0.0001, dot(n, wh));
-	return (shininess + 2.0) / (2.0 * PI) * pow(ndotwh, shininess);
-}
-
-float shadowingFunction(vec3 n, vec3 wh, vec3 wi, vec3 wo) {
-	float ndotwh = max(0.0001, dot(n, wh));
-	float ndotwi = max(0.0001, dot(n, wi));
-	float ndotwo = max(0.0001, dot(n, wo));
-	float wodotwh = max(0.0001, dot(wo, wh));
-	float G1 = 2.0 * ndotwh * ndotwo / wodotwh;
-	float G2 = 2.0 * ndotwh * ndotwi / wodotwh;
-	return min(1.0, min(G1, G2));
-}
-
-float BRDF(vec3 n, vec3 wh, vec3 wi, vec3 wo) {
-	float ndotwi = max(0.0001, dot(n, wi));
-	float ndotwo = max(0.0001, dot(n, wo));
-	float F = fresnelFunction(wi, wh, material_fresnel);
-	float D = microfacetDistributeFunction(n, wh, material_shininess);
-	float G = shadowingFunction(n, wh, wi, wo);
-	return F * D * G / 4.0 * clamp(ndotwi * ndotwo, 0.0001, 1.0); // TODO: Ask why * 4.0, probably intensity
-}
-
-vec3 metalBRDF(vec3 n, vec3 wh, vec3 wi, vec3 wo, float metalness, vec3 color, vec3 Li) {
-	return metalness * BRDF(n, wh, wi, wo) * color * dot(n, wi) * Li + (1.0 - metalness);
-}
-
-vec3 dielectricBRDF(vec3 n, vec3 wh, vec3 wi, vec3 wo, float fresnel, vec3 color, vec3 Li) {
-	return BRDF(n, wh, wi, wo) * dot(n, wi) * Li + (1.0 - fresnel) * color / PI * dot(n, wi) * Li; // TODO: Ask why it's ndotwi and not vec3(1.0) like in the slides
-}
-
 vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 {
 	vec3 direct_illum = base_color;
@@ -97,6 +60,7 @@ vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 	//            to the light. If the light is backfacing the triangle,
 	//            return vec3(0);
 	///////////////////////////////////////////////////////////////////////////
+
 	// Direction from fragment to light source
 	vec3 wi = normalize(viewSpaceLightPosition - viewSpacePosition);
 	// Distance from fragment to light source
@@ -112,29 +76,26 @@ vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 	///////////////////////////////////////////////////////////////////////////
 	// Task 1.3 - Calculate the diffuse term and return that as the result
 	///////////////////////////////////////////////////////////////////////////
-	vec3 diffuse_term = base_color * (1.0/PI) * dot(n, wi) * Li; // TODO: Ask if length is needed before dot since it's norm two
-	direct_illum = diffuse_term; // TODO: Ask why it's not strong as the pictures
+	vec3 diffuse_term = base_color * (1.0/PI) * dot(n, wi) * Li;
+	direct_illum = diffuse_term;
 	///////////////////////////////////////////////////////////////////////////
 	// Task 2 - Calculate the Torrance Sparrow BRDF and return the light
 	//          reflected from that instead
 	///////////////////////////////////////////////////////////////////////////
 	vec3 wh = normalize(wi + wo);
-	direct_illum = BRDF(n, wh, wi, wo) * dot(n, wi) * Li * base_color;
-//	direct_illum = fresnelFunction(wi, wh, material_fresnel) * dot(n, wi) * Li;
-//	direct_illum = microfacetDistributeFunction(n, wh, material_shininess) * dot(n, wi) * Li;
-//	direct_illum = shadowingFunction(n, wh, wi, wo) * dot(n, wi) * Li;
 	///////////////////////////////////////////////////////////////////////////
 	// Task 3 - Make your shader respect the parameters of our material model.
 	///////////////////////////////////////////////////////////////////////////
-//	direct_illum = material_metalness * BRDF(n, wh, wi, wo) * base_color + (1.0 - material_metalness) * BRDF(n, wh, wi, wo) * vec3(1.0) + (1.0 - material_fresnel) * base_color / PI * dot(n, wi) * Li;
-	// TODO: Ask why this version doesn't work properly even tho it's the slides' version
-//	direct_illum = metalBRDF(n, wh, wi, wo, material_metalness, base_color, Li) * dielectricBRDF(n, wh, wi, wo, material_fresnel, base_color, Li);
+
+	// To make it more readable, write functions but respect the order otherwise it doesn't work
 	
-	// Tutorial's solution
+	// Prevents edge cases where there's a division by 0
 	float ndotwh = max(0.0001, dot(n, wh));
 	float ndotwo = max(0.0001, dot(n, wo));
 	float ndotwi = max(0.0001, dot(n, wi));
+	// Fresnel uses the angle between wh and wi/wo and it's the same either using wo or wi.
 	float wodotwh = max(0.0001, dot(wo, wh));
+
 	float D = ((material_shininess + 2) / (2.0 * PI)) * pow(ndotwh, material_shininess);
 	float G = min(1.0, min(2.0 * ndotwh * ndotwo / wodotwh, 2.0 * ndotwh * ndotwi / wodotwh));
 	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0);
@@ -183,7 +144,7 @@ vec3 calculateIndirectIllumination(vec3 wo, vec3 n, vec3 base_color)
 	Li = environment_multiplier * textureLod(reflectionMap, lookup, roughness * 7.0).rgb;
 	vec3 wh = normalize(wi + wo);
 	float wodotwh = max(0.0, dot(wo, wh));
-	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0); // TODO: Ask why it's wo instead of wi
+	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0);
 	vec3 dielectric_term = F * Li + (1.0 - F) * diffuse_term;
 	vec3 metal_term = F * base_color * Li;
 
@@ -201,7 +162,7 @@ void main()
 	// Task 1.1 - Fill in the outgoing direction, wo, and the normal, n. Both
 	//            shall be normalized vectors in view-space.
 	///////////////////////////////////////////////////////////////////////////
-	vec3 wo = -normalize(viewSpacePosition); // TODO: Ask why it's negative
+	vec3 wo = -normalize(viewSpacePosition);
 	vec3 n = normalize(viewSpaceNormal);
 
 	vec3 base_color = material_color;
@@ -223,7 +184,7 @@ void main()
 	///////////////////////////////////////////////////////////////////////////
 	// Task 1.4 - Make glowy things glow!
 	///////////////////////////////////////////////////////////////////////////
-	vec3 emission_term = material_emission * material_color; // TODO: Ask if material_color is needed
+	vec3 emission_term = material_emission * material_color;
 
 	vec3 final_color = direct_illumination_term + indirect_illumination_term + emission_term;
 
