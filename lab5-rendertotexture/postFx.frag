@@ -35,7 +35,7 @@ vec2 mushrooms(vec2 inCoord);
  * requires several passes.
  * takes as input the centre coordinate to sample around.
  */
-vec3 blur(vec2 coord);
+vec3 blur(vec2 inCoord);
 
 /**
  * Simply returns the luminance of the input sample color.
@@ -47,7 +47,15 @@ vec3 grayscale(vec3 rgbSample);
  */
 vec3 toSepiaTone(vec3 rgbSample);
 
+vec2 mosaic(vec2 inCoord);
 
+vec2 churchGlass(vec2 inCoord);
+
+vec3 rgbToHsv(vec3 rgb);
+
+vec3 hsvToRgb(vec3 hsv);
+
+vec3 colorShift(vec3 c);
 
 
 void main()
@@ -74,16 +82,19 @@ void main()
 		fragmentColor = vec4(toSepiaTone(blur(mushrooms(gl_FragCoord.xy))), 1.0);
 		break;
 	case 6:
-		fragmentColor = vec4(0.0); // place holder
+		fragmentColor = textureRect(frameBufferTexture, mosaic(gl_FragCoord.xy));
 		break;
 	case 7:
-		fragmentColor = vec4(0.0); // place holder
+		fragmentColor = textureRect(blurredFrameBufferTexture, gl_FragCoord.xy);
 		break;
 	case 8:
-		fragmentColor = vec4(0.0); // place holder
+		fragmentColor = textureRect(frameBufferTexture, gl_FragCoord.xy) + textureRect(blurredFrameBufferTexture, gl_FragCoord.xy);
 		break;
 	case 9:
-		fragmentColor = vec4(0.0); // place holder
+		fragmentColor = textureRect(frameBufferTexture, churchGlass(gl_FragCoord.xy));
+		break;
+	case 10:
+		fragmentColor = vec4(colorShift(textureRect(frameBufferTexture, gl_FragCoord.xy).rgb), 1);
 		break;
 	}
 }
@@ -116,7 +127,7 @@ vec2 mushrooms(vec2 inCoord)
 	return inCoord + vec2(sin(time * 4.3127 + inCoord.y / 9.0) * 15.0, 0.0);
 }
 
-vec3 blur(vec2 coord)
+vec3 blur(vec2 inCoord)
 {
 	vec3 result = vec3(0.0);
 	float weight = 1.0 / (filterSize * filterSize);
@@ -125,7 +136,7 @@ vec3 blur(vec2 coord)
 	{
 		for(float j = -filterSize / 2; j <= filterSize / 2; j += 1.0)
 		{
-			result += weight * textureRect(frameBufferTexture, coord + vec2(i, j)).rgb;
+			result += weight * textureRect(frameBufferTexture, inCoord + vec2(i, j)).rgb;
 		}
 	}
 
@@ -135,4 +146,79 @@ vec3 blur(vec2 coord)
 vec3 grayscale(vec3 rgbSample)
 {
 	return vec3(rgbSample.r * 0.2126 + rgbSample.g * 0.7152 + rgbSample.b * 0.0722);
+}
+
+
+vec2 mosaic(vec2 inCoord) {
+	// Modulo operator is used to determine the remainder of the division of the pixel coordinates by 22
+	// Then subtracts the offset from the original coordinates
+	return inCoord - mod(inCoord, 22.0);
+}
+
+vec2 churchGlass(vec2 inCoord) {
+	return inCoord + mod(inCoord, 22.0);
+}
+
+//vec2 mosaic(vec2 inCoord) {
+//    float bucketSize = 22.0; // Size of the square bucket 22x22 pixel
+//	// Divides the pixel coordinates by the bucket size, determining which bucket the pixel is in
+//	// Floor is used to round down to the nearest integer
+//	// Then multiply by the bucketSize to convert the bucket coordinates back to pixel coordinates
+//    vec2 bucketCoord = floor(inCoord / bucketSize) * bucketSize;
+//    return bucketCoord;
+//}
+
+// Task 8 Color Shift
+vec3 rgbToHsv(vec3 rgb) {
+	vec3 hsv;
+	hsv.z = max(rgb.r, max(rgb.g, rgb.b));
+	float c = hsv.z - min(rgb.r, min(rgb.g, rgb.b));
+
+	if ( hsv.z == 0.0 ) {
+		hsv.y = 0.0;
+	} else {
+		hsv.y = c / hsv.z;
+	}
+
+	if ( c == 0.0 ) {
+		hsv.x = 0.0;
+	} else if ( hsv.z == rgb.r ) {
+		hsv.x = fract(((rgb.g - rgb.b) / c) / 6.0);
+	} else if ( hsv.z == rgb.g ) {
+		hsv.x = fract(((2.0 + (rgb.b - rgb.r) / c) / 6.0));
+	} else {
+		hsv.x = fract(((4.0 + (rgb.r - rgb.g) / c) / 6.0));
+	}
+
+	return hsv;
+}
+
+vec3 hsvToRgb(vec3 hsv) {
+	vec3 rgb;
+	float c = hsv.z * hsv.y;
+	float x = c * (1.0 - abs(mod(hsv.x * 6.0, 2.0) - 1.0));
+	float m = hsv.z - c;
+	vec3 tmp;
+	if ( hsv.x < 1.0 / 6.0 ) {
+		tmp = vec3(c, x, 0.0);
+	} else if ( hsv.x < 2.0 / 6.0 ) {
+		tmp = vec3(x, c, 0.0);
+	} else if ( hsv.x < 3.0 / 6.0 ) {
+		tmp = vec3(0.0, c, x);
+	} else if ( hsv.x < 4.0 / 6.0 ) {
+		tmp = vec3(0.0, x, c);
+	} else if ( hsv.x < 5.0 / 6.0 ) {
+		tmp = vec3(x, 0.0, c);
+	} else {
+		tmp = vec3(c, 0.0, x);
+	}
+	return vec3(tmp.r + m, tmp.g + m, tmp.b + m);
+}
+
+uniform float hueShift = 0.0;
+vec3 colorShift(vec3 c)
+{
+	c = rgbToHsv(c);
+	c.x = fract(c.x + hueShift);
+	return hsvToRgb(c);
 }
