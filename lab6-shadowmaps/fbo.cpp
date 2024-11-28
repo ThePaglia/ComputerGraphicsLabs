@@ -3,12 +3,13 @@
 #include <labhelper.h>
 
 FboInfo::FboInfo()
-    : isComplete(false)
-    , framebufferId(UINT32_MAX)
-    , colorTextureTarget(UINT32_MAX)
-    , depthBuffer(UINT32_MAX)
-    , width(0)
-    , height(0){};
+	: isComplete(false)
+	, framebufferId(UINT32_MAX)
+	, colorTextureTarget(UINT32_MAX)
+	, depthBuffer(UINT32_MAX)
+	, width(0)
+	, height(0) {
+};
 
 FboInfo::FboInfo(int w, int h) : FboInfo()
 {
@@ -23,7 +24,7 @@ void FboInfo::resize(int w, int h)
 	///////////////////////////////////////////////////////////////////////
 	// if no texture indices yet, allocate
 	///////////////////////////////////////////////////////////////////////
-	if(colorTextureTarget == UINT32_MAX)
+	if (colorTextureTarget == UINT32_MAX)
 	{
 		glGenTextures(1, &colorTextureTarget);
 		glBindTexture(GL_TEXTURE_2D, colorTextureTarget);
@@ -31,7 +32,7 @@ void FboInfo::resize(int w, int h)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
 
-	if(depthBuffer == UINT32_MAX)
+	if (depthBuffer == UINT32_MAX)
 	{
 		glGenTextures(1, &depthBuffer);
 		glBindTexture(GL_TEXTURE_2D, depthBuffer);
@@ -49,12 +50,12 @@ void FboInfo::resize(int w, int h)
 
 	glBindTexture(GL_TEXTURE_2D, depthBuffer);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
-	             nullptr);
+		nullptr);
 
 	///////////////////////////////////////////////////////////////////////
 	// Bind textures to framebuffer (if not already done)
 	///////////////////////////////////////////////////////////////////////
-	if(!isComplete)
+	if (!isComplete)
 	{
 		///////////////////////////////////////////////////////////////////////
 		// Generate and bind framebuffer
@@ -84,7 +85,7 @@ bool FboInfo::checkFramebufferComplete(void)
 	// invalid drawbuffer, among things.
 	glBindFramebuffer(GL_FRAMEBUFFER, framebufferId);
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if(status != GL_FRAMEBUFFER_COMPLETE)
+	if (status != GL_FRAMEBUFFER_COMPLETE)
 	{
 		labhelper::fatal_error("Framebuffer not complete");
 	}

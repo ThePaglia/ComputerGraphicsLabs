@@ -1,5 +1,3 @@
-
-
 #include <GL/glew.h>
 #include <cmath>
 #include <cstdlib>
@@ -57,13 +55,12 @@ vec3 lightPosition;
 float lightAzimuth = 0.f;
 float lightZenith = 45.f;
 float lightDistance = 55.f;
-bool animateLight = true;
+bool animateLight = false;
 vec3 point_light_color = vec3(1.f, 1.f, 1.f);
 bool useSpotLight = false;
 float innerSpotlightAngle = 17.5f;
 float outerSpotlightAngle = 22.5f;
 float point_light_intensity_multiplier = 10000.0f;
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Shadow map
@@ -84,11 +81,10 @@ bool useHardwarePCF = false;
 float polygonOffset_factor = .25f;
 float polygonOffset_units = 1.0f;
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Camera parameters.
 ///////////////////////////////////////////////////////////////////////////////
-float cameraSpeed = 10.f;
+float cameraSpeed = 30.f;
 
 vec3 worldUp(0.0f, 1.0f, 0.0f);
 
@@ -127,9 +123,9 @@ void changeScene(std::string sceneName)
 
 void cleanupScenes()
 {
-	for(auto& it : scenes)
+	for (auto& it : scenes)
 	{
-		for(auto& m : it.second.models)
+		for (auto& m : it.second.models)
 		{
 			labhelper::freeModel(m.model);
 		}
@@ -139,27 +135,26 @@ void cleanupScenes()
 void loadScenes()
 {
 	scenes["Ship"] = { {
-		                   // Models
-		                   { labhelper::loadModelFromOBJ("../scenes/space-ship.obj"),
-		                     translate(8.0f * worldUp) },
-		               },
-		               {
-		                   // Camera
-		                   vec3(-70, 50, 70),
-		                   normalize(-vec3(-70, 50, 70)),
-		               } };
+			// Models
+			{ labhelper::loadModelFromOBJ("../scenes/space-ship.obj"),
+			  translate(8.0f * worldUp) },
+		},
+		{
+			// Camera
+			vec3(-70, 50, 70),
+			normalize(-vec3(-70, 50, 70)),
+		} };
 	scenes["Peter Panning"] = { {
-		                            // Models
-		                            { labhelper::loadModelFromOBJ("../scenes/peter-panning-plane.obj"),
-		                              mat4(1) },
-		                        },
-		                        {
-		                            // Camera
-		                            vec3(-13, 10, 17),
-		                            normalize(-vec3(-10, 7, 10)),
-		                        } };
+			// Models
+			{ labhelper::loadModelFromOBJ("../scenes/peter-panning-plane.obj"),
+			  mat4(1) },
+		},
+		{
+			// Camera
+			vec3(-13, 10, 17),
+			normalize(-vec3(-10, 7, 10)),
+		} };
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is called once at the start of the program and never again
@@ -171,23 +166,23 @@ void initialize()
 	///////////////////////////////////////////////////////////////////////
 	// Sanity Check
 	static int _initialized = 0;
-	if(_initialized++)
+	if (_initialized++)
 	{
 		labhelper::fatal_error("You must not call the initialize() function more than once!",
-		                       "Already initialized!");
+			"Already initialized!");
 	}
 
 	///////////////////////////////////////////////////////////////////////
 	//		Load Shaders
 	///////////////////////////////////////////////////////////////////////
 	backgroundProgram = labhelper::loadShaderProgram("../lab6-shadowmaps/background.vert",
-	                                                 "../lab6-shadowmaps/background.frag");
+		"../lab6-shadowmaps/background.frag");
 	shaderProgram = labhelper::loadShaderProgram("../lab6-shadowmaps/shading.vert",
-	                                             "../lab6-shadowmaps/shading.frag");
+		"../lab6-shadowmaps/shading.frag");
 	depthProgram = labhelper::loadShaderProgram("../lab6-shadowmaps/depth.vert",
-	                                            "../lab6-shadowmaps/depth.frag");
+		"../lab6-shadowmaps/depth.frag");
 	simpleShaderProgram = labhelper::loadShaderProgram("../lab6-shadowmaps/simple.vert",
-	                                                   "../lab6-shadowmaps/simple.frag");
+		"../lab6-shadowmaps/simple.frag");
 
 	///////////////////////////////////////////////////////////////////////
 	// Load models and set up model matrices
@@ -207,7 +202,7 @@ void initialize()
 	///////////////////////////////////////////////////////////////////////
 	const int roughnesses = 8;
 	std::vector<std::string> filenames;
-	for(int i = 0; i < roughnesses; i++)
+	for (int i = 0; i < roughnesses; i++)
 		filenames.push_back("../scenes/envmaps/" + envmap_base_name + "_dl_" + std::to_string(i) + ".hdr");
 
 	reflectionMap = labhelper::loadHdrMipmapTexture(filenames);
@@ -222,29 +217,30 @@ void initialize()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
 
-
 	///////////////////////////////////////////////////////////////////////
 	// Setup Framebuffer for shadow map rendering
 	///////////////////////////////////////////////////////////////////////
 	shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
 
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 
 	glEnable(GL_DEPTH_TEST); // enable Z-buffering
 	glEnable(GL_CULL_FACE);  // enables backface culling
 }
 
 void debugDrawLight(const glm::mat4& viewMatrix,
-                    const glm::mat4& projectionMatrix,
-                    const glm::vec3& worldSpaceLightPos)
+	const glm::mat4& projectionMatrix,
+	const glm::vec3& worldSpaceLightPos)
 {
 	mat4 modelMatrix = glm::translate(worldSpaceLightPos);
 	glUseProgram(simpleShaderProgram);
 	labhelper::setUniformSlow(simpleShaderProgram, "modelViewProjectionMatrix",
-	                          projectionMatrix * viewMatrix * modelMatrix);
+		projectionMatrix * viewMatrix * modelMatrix);
 	labhelper::setUniformSlow(simpleShaderProgram, "material_color", vec3(1, 1, 1));
 	labhelper::debugDrawSphere();
 }
-
 
 void drawBackground(const mat4& viewMatrix, const mat4& projectionMatrix)
 {
@@ -255,28 +251,43 @@ void drawBackground(const mat4& viewMatrix, const mat4& projectionMatrix)
 	labhelper::drawFullScreenQuad();
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is used to draw the main objects on the scene
 ///////////////////////////////////////////////////////////////////////////////
 void drawScene(GLuint currentShaderProgram,
-               const mat4& viewMatrix,
-               const mat4& projectionMatrix,
-               const mat4& lightViewMatrix,
-               const mat4& lightProjectionMatrix)
+	const mat4& viewMatrix,
+	const mat4& projectionMatrix,
+	const mat4& lightViewMatrix,
+	const mat4& lightProjectionMatrix)
 {
 	glUseProgram(currentShaderProgram);
 	// Light source
 	vec4 viewSpaceLightPosition = viewMatrix * vec4(lightPosition, 1.0f);
 	labhelper::setUniformSlow(currentShaderProgram, "point_light_color", point_light_color);
-	labhelper::setUniformSlow(currentShaderProgram, "point_light_intensity_multiplier",
-	                          point_light_intensity_multiplier);
+	labhelper::setUniformSlow(currentShaderProgram, "point_light_intensity_multiplier", point_light_intensity_multiplier);
 	labhelper::setUniformSlow(currentShaderProgram, "viewSpaceLightPosition", vec3(viewSpaceLightPosition));
-	labhelper::setUniformSlow(currentShaderProgram, "viewSpaceLightDir",
-	                          normalize(vec3(viewMatrix * vec4(-lightPosition, 0.0f))));
+	labhelper::setUniformSlow(currentShaderProgram, "viewSpaceLightDir", normalize(vec3(viewMatrix * vec4(-lightPosition, 0.0f))));
+	// Task 6
+	// Spot light
 	labhelper::setUniformSlow(currentShaderProgram, "spotOuterAngle", std::cos(radians(outerSpotlightAngle)));
+	labhelper::setUniformSlow(currentShaderProgram, "spotInnerAngle", std::cos(radians(innerSpotlightAngle)));
+	labhelper::setUniformSlow(currentShaderProgram, "useSpotLight", useSpotLight ? 1 : 0);
+	labhelper::setUniformSlow(currentShaderProgram, "useSoftFalloff", useSoftFalloff ? 1 : 0);
 
+	// Shadow map
+	// Task 2
+	glActiveTexture(GL_TEXTURE10);
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
 
+	// First, inverse(viewMatrix) transforms from camera view space to world space
+	// Next, lightViewMatrix transforms from world space to light view space
+	// Finally, lightProjMatrix transforms from light view space to light clip space
+	// Thus, lightMatrix transforms a coordinate from camera view space to light clip space
+	// Light clip space has coordinates in the range (-1, -1, -1) to (1, 1, 1) and texture coordinates are in the range (0, 0) to (1, 1)
+	// The depth value we've stored in our shadow map has the same range between 0 and 1
+	// By doing translate and scale we remap from clip space to texture-coordinates space
+	mat4 lightMatrix = translate(vec3(0.5f)) * scale(vec3(0.5f)) * lightProjectionMatrix * lightViewMatrix * inverse(viewMatrix);
+	labhelper::setUniformSlow(currentShaderProgram, "lightMatrix", lightMatrix);
 
 	// Environment
 	labhelper::setUniformSlow(currentShaderProgram, "environment_multiplier", environment_multiplier);
@@ -287,25 +298,24 @@ void drawScene(GLuint currentShaderProgram,
 	// landing pad
 	mat4 modelMatrix(1.0f);
 	labhelper::setUniformSlow(currentShaderProgram, "modelViewProjectionMatrix",
-	                          projectionMatrix * viewMatrix * modelMatrix);
+		projectionMatrix * viewMatrix * modelMatrix);
 	labhelper::setUniformSlow(currentShaderProgram, "modelViewMatrix", viewMatrix * modelMatrix);
 	labhelper::setUniformSlow(currentShaderProgram, "normalMatrix",
-	                          inverse(transpose(viewMatrix * modelMatrix)));
+		inverse(transpose(viewMatrix * modelMatrix)));
 
 	labhelper::render(landingpadModel);
 
 	// scene objects
-	for(auto& m : scenes[currentScene].models)
+	for (auto& m : scenes[currentScene].models)
 	{
 		labhelper::setUniformSlow(currentShaderProgram, "modelViewProjectionMatrix",
-		                          projectionMatrix * viewMatrix * m.modelMat);
+			projectionMatrix * viewMatrix * m.modelMat);
 		labhelper::setUniformSlow(currentShaderProgram, "modelViewMatrix", viewMatrix * m.modelMat);
 		labhelper::setUniformSlow(currentShaderProgram, "normalMatrix",
-		                          inverse(transpose(viewMatrix * m.modelMat)));
+			inverse(transpose(viewMatrix * m.modelMat)));
 		labhelper::render(m.model);
 	}
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function will be called once per frame, so the code to set up
@@ -342,10 +352,59 @@ void display(void)
 	// Set up shadow map parameters
 	///////////////////////////////////////////////////////////////////////////
 	// Task 1
+	if (shadowMapFB.width != shadowMapResolution || shadowMapFB.height != shadowMapResolution) {
+		shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
+	}
 
+	// This line is to avoid some warnings from OpenGL for having the shadowmap attached to texture unit 0
+	// when using a shader that samples from that texture with a sampler2D instead of a shadow sampler
+	// It is never actually sampled, but just having it set there generates the warning in some systems
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+	// Task 5
+	if (shadowMapClampMode == ClampMode::Edge) {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+	if (shadowMapClampMode == ClampMode::Border) {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		vec4 border(shadowMapClampBorderShadowed ? 0.f : 1.f);
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border.x);
+	}
+	// Task 9
+	if (useHardwarePCF) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+	else {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
 	///////////////////////////////////////////////////////////////////////////
 	// Draw Shadow Map
 	///////////////////////////////////////////////////////////////////////////
+
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFB.framebufferId);
+	glViewport(0, 0, shadowMapFB.height, shadowMapFB.width);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// Task 3
+	// Polygon offset to avoid self-shadowing (shadow acne)
+	// Setting units or factor too high will cause peter panning, which make it look like the shadow is floating above the surface
+	if (usePolygonOffset) {
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(polygonOffset_factor, polygonOffset_units);
+	}
+	drawScene(simpleShaderProgram, lightViewMatrix, lightProjMatrix, lightViewMatrix, lightProjMatrix);
+	if (usePolygonOffset) {
+		glDisable(GL_POLYGON_OFFSET_FILL);
+	}
+	labhelper::Material& screen = landingpadModel->m_materials[8];
+	screen.m_emission_texture.gl_id = shadowMapFB.colorTextureTarget;
 
 	///////////////////////////////////////////////////////////////////////////
 	// Draw from camera
@@ -359,10 +418,8 @@ void display(void)
 	drawScene(shaderProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
 	debugDrawLight(viewMatrix, projMatrix, vec3(lightPosition));
 
-
 	CHECK_GL_ERROR();
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is used to update the scene according to user input
@@ -376,31 +433,31 @@ bool handleEvents(void)
 	// Allow ImGui to capture events.
 	ImGuiIO& io = ImGui::GetIO();
 
-	while(SDL_PollEvent(&event))
+	while (SDL_PollEvent(&event))
 	{
 		ImGui_ImplSdlGL3_ProcessEvent(&event);
 
-		if(event.type == SDL_QUIT || (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE))
+		if (event.type == SDL_QUIT || (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE))
 		{
 			quitEvent = true;
 		}
-		else if(event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_g)
+		else if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_g)
 		{
 			showUI = !showUI;
 		}
-		else if(event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_PRINTSCREEN)
+		else if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_PRINTSCREEN)
 		{
 			labhelper::saveScreenshot();
 		}
-		else if(event.type == SDL_MOUSEBUTTONDOWN && (!showUI || !ImGui::GetIO().WantCaptureMouse)
-		        && (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
-		        && !(g_isMouseDragging || g_isMouseRightDragging))
+		else if (event.type == SDL_MOUSEBUTTONDOWN && (!showUI || !ImGui::GetIO().WantCaptureMouse)
+			&& (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
+			&& !(g_isMouseDragging || g_isMouseRightDragging))
 		{
-			if(event.button.button == SDL_BUTTON_LEFT)
+			if (event.button.button == SDL_BUTTON_LEFT)
 			{
 				g_isMouseDragging = true;
 			}
-			else if(event.button.button == SDL_BUTTON_RIGHT)
+			else if (event.button.button == SDL_BUTTON_RIGHT)
 			{
 				g_isMouseRightDragging = true;
 			}
@@ -411,28 +468,28 @@ bool handleEvents(void)
 			g_prevMouseCoords.y = y;
 		}
 
-		if(!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)))
+		if (!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)))
 		{
 			g_isMouseDragging = false;
 		}
-		if(!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_RIGHT)))
+		if (!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_RIGHT)))
 		{
 			g_isMouseRightDragging = false;
 		}
 
-		if(event.type == SDL_MOUSEMOTION)
+		if (event.type == SDL_MOUSEMOTION)
 		{
 			// More info at https://wiki.libsdl.org/SDL_MouseMotionEvent
 			int delta_x = event.motion.x - g_prevMouseCoords.x;
 			int delta_y = event.motion.y - g_prevMouseCoords.y;
-			if(g_isMouseDragging)
+			if (g_isMouseDragging)
 			{
 				float rotation_speed = 0.005f;
 				mat4 yaw = rotate(rotation_speed * -delta_x, worldUp);
 				mat4 pitch = rotate(rotation_speed * -delta_y, normalize(cross(camera.direction, worldUp)));
 				camera.direction = vec3(pitch * yaw * vec4(camera.direction, 0.0f));
 			}
-			else if(g_isMouseRightDragging)
+			else if (g_isMouseRightDragging)
 			{
 				const float rotation_speed = 0.01f;
 				lightAzimuth += delta_x * rotation_speed;
@@ -442,39 +499,39 @@ bool handleEvents(void)
 		}
 	}
 
-	if(!io.WantCaptureKeyboard)
+	if (!io.WantCaptureKeyboard)
 	{
 		// check keyboard state (which keys are still pressed)
 		const uint8_t* state = SDL_GetKeyboardState(nullptr);
 		vec3 cameraRight = cross(camera.direction, worldUp);
-		if(state[SDL_SCANCODE_W])
+		if (state[SDL_SCANCODE_W])
 		{
 			camera.position += deltaTime * cameraSpeed * camera.direction;
 		}
-		if(state[SDL_SCANCODE_S])
+		if (state[SDL_SCANCODE_S])
 		{
 			camera.position -= deltaTime * cameraSpeed * camera.direction;
 		}
-		if(state[SDL_SCANCODE_A])
+		if (state[SDL_SCANCODE_A])
 		{
 			camera.position -= deltaTime * cameraSpeed * cameraRight;
 		}
-		if(state[SDL_SCANCODE_D])
+		if (state[SDL_SCANCODE_D])
 		{
 			camera.position += deltaTime * cameraSpeed * cameraRight;
 		}
-		if(state[SDL_SCANCODE_Q])
+		if (state[SDL_SCANCODE_Q])
 		{
 			camera.position -= deltaTime * cameraSpeed * worldUp;
 		}
-		if(state[SDL_SCANCODE_E])
+		if (state[SDL_SCANCODE_E])
 		{
 			camera.position += deltaTime * cameraSpeed * worldUp;
 		}
 	}
 
 	const float light_rotation_speed = 90.f;
-	if(animateLight)
+	if (animateLight)
 	{
 		lightAzimuth += deltaTime * light_rotation_speed;
 		lightAzimuth = fmodf(lightAzimuth, 360.f);
@@ -483,19 +540,18 @@ bool handleEvents(void)
 	return quitEvent;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is to hold the general GUI logic
 ///////////////////////////////////////////////////////////////////////////////
 void gui()
 {
-	if(ImGui::BeginMainMenuBar())
+	if (ImGui::BeginMainMenuBar())
 	{
-		if(ImGui::BeginMenu("Scene"))
+		if (ImGui::BeginMenu("Scene"))
 		{
-			for(auto it : scenes)
+			for (auto it : scenes)
 			{
-				if(ImGui::MenuItem(it.first.c_str(), nullptr, it.first == currentScene))
+				if (ImGui::MenuItem(it.first.c_str(), nullptr, it.first == currentScene))
 				{
 					changeScene(it.first);
 				}
@@ -524,7 +580,7 @@ void gui()
 	ImGui::SliderFloat("Light Azimuth", &lightAzimuth, 0.0f, 360.0f);
 	ImGui::SliderFloat("Light Zenith", &lightZenith, 0.0f, 90.0f);
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
-	            ImGui::GetIO().Framerate);
+		ImGui::GetIO().Framerate);
 	// ----------------------------------------------------------
 }
 
@@ -537,7 +593,7 @@ int main(int argc, char* argv[])
 	bool stopRendering = false;
 	auto startTime = std::chrono::system_clock::now();
 
-	while(!stopRendering)
+	while (!stopRendering)
 	{
 		//update currentTime
 		std::chrono::duration<float> timeSinceStart = std::chrono::system_clock::now() - startTime;
@@ -554,7 +610,7 @@ int main(int argc, char* argv[])
 		display();
 
 		// Render overlay GUI.
-		if(showUI)
+		if (showUI)
 		{
 			gui();
 		}

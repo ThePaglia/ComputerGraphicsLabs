@@ -32,6 +32,15 @@ uniform vec3 point_light_color = vec3(1.0, 1.0, 1.0);
 uniform float point_light_intensity_multiplier = 50.0;
 
 ///////////////////////////////////////////////////////////////////////////////
+// Spotlight
+///////////////////////////////////////////////////////////////////////////////
+uniform vec3 viewSpaceLightDir;
+uniform int useSpotLight;
+uniform int useSoftFalloff;
+uniform float spotInnerAngle;
+uniform float spotOuterAngle;
+
+///////////////////////////////////////////////////////////////////////////////
 // Constants
 ///////////////////////////////////////////////////////////////////////////////
 #define PI 3.14159265359
@@ -42,6 +51,8 @@ uniform float point_light_intensity_multiplier = 50.0;
 in vec2 texCoord;
 in vec3 viewSpaceNormal;
 in vec3 viewSpacePosition;
+// Task 7
+in vec4 shadowMapCoord;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Input uniform variables
@@ -54,27 +65,180 @@ uniform vec3 viewSpaceLightPosition;
 ///////////////////////////////////////////////////////////////////////////////
 layout(location = 0) out vec4 fragmentColor;
 
-
-
+///////////////////////////////////////////////////////////////////////////////
+// Shadow map
+///////////////////////////////////////////////////////////////////////////////
+// Task 2
+// Task 7
+// Moved to the vertex shader to optimize
+//uniform mat4 lightMatrix;
+// Task 8
+// Using our shadow test
+//layout(binding = 10) uniform sampler2D shadowMapTex;
+// Using built-in shadow test
+layout(binding = 10) uniform sampler2DShadow shadowMapTex;
 
 vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 {
-	return vec3(base_color);
+	vec3 direct_illum = base_color;
+	///////////////////////////////////////////////////////////////////////////
+	// Task 1.2 - Calculate the radiance Li from the light, and the direction
+	//            to the light. If the light is backfacing the triangle,
+	//            return vec3(0);
+	///////////////////////////////////////////////////////////////////////////
+
+	// Direction from fragment to light source
+	vec3 wi = normalize(viewSpaceLightPosition - viewSpacePosition);
+	// Distance from fragment to light source
+	const float d = length(wi);
+	// Factor that reduces the intensity of the light source with distance
+	const float falloff_factor = 1.0 / (d * d);
+	// Intensity of the light source
+	vec3 Li = normalize(point_light_intensity_multiplier * point_light_color * falloff_factor);
+	// Check if the light source is backfacing the triangle
+	if (dot(n, wi) < 0.0) {
+		return vec3(0.0);
+	}
+	///////////////////////////////////////////////////////////////////////////
+	// Task 1.3 - Calculate the diffuse term and return that as the result
+	///////////////////////////////////////////////////////////////////////////
+	vec3 diffuse_term = base_color * (1.0/PI) * dot(n, wi) * Li;
+	direct_illum = diffuse_term;
+	///////////////////////////////////////////////////////////////////////////
+	// Task 2 - Calculate the Torrance Sparrow BRDF and return the light
+	//          reflected from that instead
+	///////////////////////////////////////////////////////////////////////////
+	vec3 wh = normalize(wi + wo);
+	///////////////////////////////////////////////////////////////////////////
+	// Task 3 - Make your shader respect the parameters of our material model.
+	///////////////////////////////////////////////////////////////////////////
+
+	// To make it more readable, write functions but respect the order otherwise it doesn't work
+	
+	// Prevents edge cases where there's a division by 0
+	float ndotwh = max(0.0001, dot(n, wh));
+	float ndotwo = max(0.0001, dot(n, wo));
+	float ndotwi = max(0.0001, dot(n, wi));
+	// Fresnel uses the angle between wh and wi/wo and it's the same either using wo or wi.
+	float wodotwh = max(0.0001, dot(wo, wh));
+
+	float D = ((material_shininess + 2) / (2.0 * PI)) * pow(ndotwh, material_shininess);
+	float G = min(1.0, min(2.0 * ndotwh * ndotwo / wodotwh, 2.0 * ndotwh * ndotwi / wodotwh));
+	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0);
+	float denominator = 4.0 * clamp(ndotwo * ndotwi, 0.0001, 1.0);
+	float brdf = D * F * G / denominator;
+
+	vec3 dielectric_term = brdf * ndotwi * Li + (1.0 - F) * diffuse_term;
+	vec3 metal_term = brdf * base_color * ndotwi * Li;
+	vec3 microfacet_term = material_metalness * brdf * base_color * ndotwi * Li + (1.0 - material_metalness) * dielectric_term;
+	direct_illum = microfacet_term;
+
+	return direct_illum;
 }
 
 vec3 calculateIndirectIllumination(vec3 wo, vec3 n, vec3 base_color)
 {
-	return vec3(0.0);
+	vec3 indirect_illum = vec3(0.f);
+	///////////////////////////////////////////////////////////////////////////
+	// Task 5 - Lookup the irradiance from the irradiance map and calculate
+	//          the diffuse reflection
+	///////////////////////////////////////////////////////////////////////////
+	// world normal
+	vec3 wn = vec3(viewInverse * vec4(n, 0.0));
+	float theta = acos(max(-1.0f, min(1.0f, wn.y)));
+	float phi = atan(wn.z, wn.x);
+	if(phi < 0.0f)
+	{
+		phi = phi + 2.0f * PI;
+	}
+	vec2 lookup = vec2(phi / (2.0 * PI), 1 - theta / PI);
+	vec3 Li = environment_multiplier * texture(irradianceMap, lookup).rgb;
+	vec3 diffuse_term = base_color * (1.0 / PI) * Li;
+	indirect_illum = diffuse_term;
+	///////////////////////////////////////////////////////////////////////////
+	// Task 6 - Look up in the reflection map from the perfect specular
+	//          direction and calculate the dielectric and metal terms.
+	///////////////////////////////////////////////////////////////////////////
+	vec3 wi = normalize(reflect(-wo, n));
+	vec3 wr = normalize(vec3(viewInverse * vec4(wi, 0.0)));
+	theta = acos(max(-1.0f, min(1.0f, wr.y)));
+	phi = atan(wr.z, wr.x);
+	if(phi < 0.0f)
+		phi = phi + 2.0f * PI;
+	lookup = vec2(phi / (2.0 * PI), 1 - theta / PI);
+	float roughness = sqrt(sqrt(2.0 / (material_shininess + 2.0)));
+	Li = environment_multiplier * textureLod(reflectionMap, lookup, roughness * 7.0).rgb;
+	vec3 wh = normalize(wi + wo);
+	float wodotwh = max(0.0, dot(wo, wh));
+	float F = material_fresnel + (1.0 - material_fresnel) * pow(1.0 - wodotwh, 5.0);
+	vec3 dielectric_term = F * Li + (1.0 - F) * diffuse_term;
+	vec3 metal_term = F * base_color * Li;
+
+	vec3 microfacet_term = material_metalness * metal_term + (1.0 - material_metalness) * dielectric_term;
+
+	indirect_illum = microfacet_term;
+
+	return indirect_illum;
 }
 
-void main()
-{
-	float visibility = 1.0;
+void main() {
 	float attenuation = 1.0;
+	float visibility = 1.0;
+
+	// Task 2
+//	vec4 shadowMapCoord = lightMatrix * vec4(viewSpacePosition, 1.f);
+//	float depth = texture(shadowMapTex, shadowMapCoord.xy / shadowMapCoord.w).x;
+//	visibility = (depth >= (shadowMapCoord.z / shadowMapCoord.w)) ? 1.0 : 0.0;
+	
+	// Task 7
+	// Moved this to the vertex shader to optimize
+//	vec4 shadowMapCoord = lightMatrix * vec4(viewSpacePosition, 1.0);
+
+	// Task 8
+	// Using built-in shadow test
+	visibility = textureProj(shadowMapTex, shadowMapCoord);
+	// Using our shadow test
+//	float depth = texture(shadowMapTex, shadowMapCoord.xy / shadowMapCoord.w).r;
+//	visibility = (depth >= (shadowMapCoord.z / shadowMapCoord.w)) ? 1.0 : 0.0;
+
+
+	// Task 6
+	// Vector from the fragment to the light source
+//	vec3 posToLight = normalize(viewSpaceLightPosition - viewSpacePosition);
+	// Angle between the fragment-light vector and the light's direction
+//	float cosAngle = dot(posToLight, -viewSpaceLightDir);
+
+	// Spotlight with hard border
+	//float spotAttenuation = (cosAngle > spotOuterAngle) ? 1.0 : 0.0;
+	// Spotlight with soft border
+//	float spotAttenuation = smoothstep(spotOuterAngle, spotInnerAngle, cosAngle);
+//	visibility *= spotAttenuation;
+
+	if(useSpotLight == 1)
+	{
+		// Vector from the fragment to the light source
+		vec3 posToLight = normalize(viewSpaceLightPosition - viewSpacePosition);
+		// Angle between the fragment-light vector and the light's direction
+		float cosAngle = dot(posToLight, -viewSpaceLightDir);
+
+		if(useSoftFalloff == 0)
+		{
+			// Spotlight with hard border:
+			attenuation = (cosAngle > spotOuterAngle) ? 1.0 : 0.0;
+		}
+		else
+		{
+			// Spotlight with soft border:
+			attenuation = smoothstep(spotOuterAngle, spotInnerAngle, cosAngle);
+		}
+
+		visibility *= attenuation;
+	}
 
 
 	vec3 wo = -normalize(viewSpacePosition);
 	vec3 n = normalize(viewSpaceNormal);
+
 
 	vec3 base_color = material_color;
 	if(has_color_texture == 1)

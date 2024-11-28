@@ -20,6 +20,6 @@ void ParticleSystem::submit_to_gpu(const glm::mat4& viewMat)
 {
 }
 
-void ParticleSystem::spawn(Particle particle){};
+void ParticleSystem::spawn(Particle particle) {};
 
-void ParticleSystem::kill(int id){};
+void ParticleSystem::kill(int id) {};

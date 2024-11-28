@@ -1,4 +1,3 @@
-
 #include "heightfield.h"
 
 #include <iostream>
@@ -11,16 +10,16 @@ using namespace glm;
 using std::string;
 
 HeightField::HeightField(void)
-    : m_meshResolution(0)
-    , m_vao(UINT32_MAX)
-    , m_positionBuffer(UINT32_MAX)
-    , m_uvBuffer(UINT32_MAX)
-    , m_indexBuffer(UINT32_MAX)
-    , m_numIndices(0)
-    , m_texid_hf(UINT32_MAX)
-    , m_texid_diffuse(UINT32_MAX)
-    , m_heightFieldPath("")
-    , m_diffuseTexturePath("")
+	: m_meshResolution(0)
+	, m_vao(UINT32_MAX)
+	, m_positionBuffer(UINT32_MAX)
+	, m_uvBuffer(UINT32_MAX)
+	, m_indexBuffer(UINT32_MAX)
+	, m_numIndices(0)
+	, m_texid_hf(UINT32_MAX)
+	, m_texid_diffuse(UINT32_MAX)
+	, m_heightFieldPath("")
+	, m_diffuseTexturePath("")
 {
 }
 
@@ -29,13 +28,13 @@ void HeightField::loadHeightField(const std::string& heigtFieldPath)
 	int width, height, components;
 	stbi_set_flip_vertically_on_load(true);
 	float* data = stbi_loadf(heigtFieldPath.c_str(), &width, &height, &components, 1);
-	if(data == nullptr)
+	if (data == nullptr)
 	{
 		std::cout << "Failed to load image: " << heigtFieldPath << ".\n";
 		return;
 	}
 
-	if(m_texid_hf == UINT32_MAX)
+	if (m_texid_hf == UINT32_MAX)
 	{
 		glGenTextures(1, &m_texid_hf);
 	}
@@ -46,7 +45,7 @@ void HeightField::loadHeightField(const std::string& heigtFieldPath)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT,
-	             data); // just one component (float)
+		data); // just one component (float)
 
 	m_heightFieldPath = heigtFieldPath;
 	std::cout << "Successfully loaded heigh field texture: " << heigtFieldPath << ".\n";
@@ -57,13 +56,13 @@ void HeightField::loadDiffuseTexture(const std::string& diffusePath)
 	int width, height, components;
 	stbi_set_flip_vertically_on_load(true);
 	uint8_t* data = stbi_load(diffusePath.c_str(), &width, &height, &components, 3);
-	if(data == nullptr)
+	if (data == nullptr)
 	{
 		std::cout << "Failed to load image: " << diffusePath << ".\n";
 		return;
 	}
 
-	if(m_texid_diffuse == UINT32_MAX)
+	if (m_texid_diffuse == UINT32_MAX)
 	{
 		glGenTextures(1, &m_texid_diffuse);
 	}
@@ -80,7 +79,6 @@ void HeightField::loadDiffuseTexture(const std::string& diffusePath)
 	std::cout << "Successfully loaded diffuse texture: " << diffusePath << ".\n";
 }
 
-
 void HeightField::generateMesh(int tesselation)
 {
 	// generate a mesh in range -1 to 1 in x and z
@@ -89,10 +87,9 @@ void HeightField::generateMesh(int tesselation)
 
 void HeightField::submitTriangles(void)
 {
-	if(m_vao == UINT32_MAX)
+	if (m_vao == UINT32_MAX)
 	{
 		std::cout << "No vertex array is generated, cannot draw anything.\n";
 		return;
 	}
-
 }

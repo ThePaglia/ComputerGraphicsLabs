@@ -8,7 +8,7 @@ void HDRImage::load(const string& filename)
 {
 	stbi_set_flip_vertically_on_load(true);
 	data = stbi_loadf(filename.c_str(), &width, &height, &components, 3);
-	if(data == NULL)
+	if (data == NULL)
 	{
 		std::cout << "Failed to load image: " << filename << ".\n";
 		exit(1);

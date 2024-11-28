@@ -10,10 +10,10 @@ struct HDRImage
 {
 	int width, height, components;
 	float* data = nullptr;
-	HDRImage(){};
+	HDRImage() {};
 	~HDRImage()
 	{
-		if(data != nullptr)
+		if (data != nullptr)
 			stbi_image_free(data);
 	};
 	void load(const std::string& filename);
