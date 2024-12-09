@@ -94,7 +94,36 @@ bool FboInfo::checkFramebufferComplete(void)
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (status != GL_FRAMEBUFFER_COMPLETE)
 	{
-		labhelper::fatal_error("Framebuffer not complete");
+		switch (status)
+		{
+		case GL_FRAMEBUFFER_UNDEFINED:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_UNDEFINED");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER");
+			break;
+		case GL_FRAMEBUFFER_UNSUPPORTED:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_UNSUPPORTED");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+			labhelper::fatal_error("Framebuffer not complete: GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS");
+			break;
+		default:
+			labhelper::fatal_error("Framebuffer not complete: Unknown error");
+			break;
+		}
 	}
 
 	return (status == GL_FRAMEBUFFER_COMPLETE);

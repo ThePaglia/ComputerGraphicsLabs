@@ -42,7 +42,9 @@ bool g_isMouseDragging = false;
 ///////////////////////////////////////////////////////////////////////////////
 GLuint shaderProgram;       // Shader for rendering the final image
 GLuint simpleShaderProgram; // Shader used to draw the shadow map
-GLuint backgroundProgram;
+GLuint backgroundProgram;   // Shader used to draw the background
+GLuint ssaoInputProgram;    // Shader used for the ssaoInput
+GLuint ssaoOutputProgram;   // Shader used for the ssaoOutput
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment
@@ -80,6 +82,11 @@ mat4 fighterModelMatrix;
 
 float shipSpeed = 50;
 
+///////////////////////////////////////////////////////////////////////////////
+// SSAO
+///////////////////////////////////////////////////////////////////////////////
+FboInfo ssaoInputFbo;
+
 void loadShaders(bool is_reload)
 {
 	GLuint shader = labhelper::loadShaderProgram("../project/simple.vert", "../project/simple.frag",
@@ -100,6 +107,18 @@ void loadShaders(bool is_reload)
 	if (shader != 0)
 	{
 		shaderProgram = shader;
+	}
+
+	shader = labhelper::loadShaderProgram("../project/ssaoInput.vert", "../project/ssaoInput.frag", is_reload);
+	if (shader != 0)
+	{
+		ssaoInputProgram = shader;
+	}
+
+	shader = labhelper::loadShaderProgram("../project/ssaoOutput.vert", "../project/ssaoOutput.frag", is_reload);
+	if (shader != 0)
+	{
+		ssaoOutputProgram = shader;
 	}
 }
 
@@ -139,6 +158,10 @@ void initialize()
 
 	glEnable(GL_DEPTH_TEST); // enable Z-buffering
 	glEnable(GL_CULL_FACE);  // enables backface culling
+
+	// Setup SSAO FBO
+	SDL_GetWindowSize(g_window, &windowWidth, &windowHeight);
+	ssaoInputFbo.resize(windowWidth, windowHeight);
 }
 
 void debugDrawLight(const glm::mat4& viewMatrix,
@@ -246,6 +269,18 @@ void display(void)
 	glActiveTexture(GL_TEXTURE8);
 	glBindTexture(GL_TEXTURE_2D, reflectionMap);
 	glActiveTexture(GL_TEXTURE0);
+
+	// FBOs
+	if (ssaoInputFbo.width != windowWidth || ssaoInputFbo.height != windowHeight) {
+		ssaoInputFbo.resize(windowWidth, windowHeight);
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoInputFbo.framebufferId);
+	glViewport(0, 0, windowWidth, windowHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawScene(ssaoInputProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
+
+	// Unbind the framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	///////////////////////////////////////////////////////////////////////////
 	// Draw from camera

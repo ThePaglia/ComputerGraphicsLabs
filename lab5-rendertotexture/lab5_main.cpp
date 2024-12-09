@@ -37,7 +37,7 @@ bool g_isMouseDragging = false;
 ///////////////////////////////////////////////////////////////////////////////
 // Shader programs
 ///////////////////////////////////////////////////////////////////////////////
-GLuint backgroundProgram, shaderProgram, postFxShader, horizontalBlurShader, verticalBlurShader, cutoffShader;
+GLuint backgroundProgram, shaderProgram, postFxShader, horizontalBlurShader = 0, verticalBlurShader = 0, cutoffShader = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment
@@ -378,7 +378,7 @@ void display()
 	///////////////////////////////////////////////////////////////////////////
 	FboInfo& cameraFBO = fboList[1];
 	glBindFramebuffer(GL_FRAMEBUFFER, cameraFBO.framebufferId); // to be replaced with another framebuffer when doing post processing
-	glViewport(0, 0, cameraFBO.width, cameraFBO.height);
+	glViewport(0, 0, w, h);
 	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -387,61 +387,64 @@ void display()
 	// camera (obj-model)
 	drawCamera(securityCamViewMatrix, viewMatrix, projectionMatrix);
 
-	// TODO: Fix this so that it isn't black, proably need to change the framebuffer
 	// Task 6 Efficient Blur
-	// Horizontal Blur
 	FboInfo& horizontalBlurFBO = fboList[2];
-	glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurFBO.framebufferId);
-	glViewport(0, 0, horizontalBlurFBO.width, horizontalBlurFBO.height);
-	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(horizontalBlurShader);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, cameraFBO.colorTextureTarget);
-	labhelper::drawFullScreenQuad();
-
-	// Vertical Blur
 	FboInfo& verticalBlurFBO = fboList[3];
-	glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFBO.framebufferId);
-	glViewport(0, 0, verticalBlurFBO.width, verticalBlurFBO.height);
-	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(verticalBlurShader);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, horizontalBlurFBO.colorTextureTarget);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, verticalBlurFBO.colorTextureTarget);
-	labhelper::drawFullScreenQuad();
+	if (currentEffect == PostProcessingEffect::Separable_blur) {
+		// Horizontal Blur
+		glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurFBO.framebufferId);
+		glViewport(0, 0, horizontalBlurFBO.width, horizontalBlurFBO.height);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glUseProgram(horizontalBlurShader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, cameraFBO.colorTextureTarget);
+		labhelper::drawFullScreenQuad();
+
+		// Vertical Blur
+		glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFBO.framebufferId);
+		glViewport(0, 0, verticalBlurFBO.width, verticalBlurFBO.height);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glUseProgram(verticalBlurShader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, horizontalBlurFBO.colorTextureTarget);
+		
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, verticalBlurFBO.colorTextureTarget); 
+		labhelper::drawFullScreenQuad();
+
+	}
 
 	// Task 7 Bloom
-	// Cutoff
-	FboInfo& cutoffFBO = fboList[4];
-	glBindFramebuffer(GL_FRAMEBUFFER, cutoffFBO.framebufferId);
-	glViewport(0, 0, cutoffFBO.width, cutoffFBO.height);
-	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(cutoffShader);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, cameraFBO.colorTextureTarget);
-	labhelper::drawFullScreenQuad();
+	if (currentEffect == PostProcessingEffect::Bloom) {
+		// Cutoff
+		FboInfo& cutoffFBO = fboList[2];
+		glBindFramebuffer(GL_FRAMEBUFFER, cutoffFBO.framebufferId);
+		glViewport(0, 0, cutoffFBO.width, cutoffFBO.height);
+		glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glUseProgram(cutoffShader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, cameraFBO.colorTextureTarget);
+		labhelper::drawFullScreenQuad();
 
-	// Horizontal Blur
-	glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurFBO.framebufferId);
-	glViewport(0, 0, horizontalBlurFBO.width, horizontalBlurFBO.height);
-	glClear(GL_DEPTH_BUFFER_BIT);
-	glUseProgram(horizontalBlurShader);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, cutoffFBO.colorTextureTarget);
-	labhelper::drawFullScreenQuad();
+		// Horizontal Blur
+		glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurFBO.framebufferId);
+		glViewport(0, 0, horizontalBlurFBO.width, horizontalBlurFBO.height);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glUseProgram(horizontalBlurShader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, cutoffFBO.colorTextureTarget);
+		labhelper::drawFullScreenQuad();
 
-	// Vertical Blur
-	glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFBO.framebufferId);
-	glViewport(0, 0, verticalBlurFBO.width, verticalBlurFBO.height);
-	glClear(GL_DEPTH_BUFFER_BIT);
-	glUseProgram(verticalBlurShader);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, horizontalBlurFBO.colorTextureTarget);
-	labhelper::drawFullScreenQuad();
+		// Vertical Blur
+		glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFBO.framebufferId);
+		glViewport(0, 0, verticalBlurFBO.width, verticalBlurFBO.height);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glUseProgram(verticalBlurShader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, horizontalBlurFBO.colorTextureTarget);
+		labhelper::drawFullScreenQuad();
+	}
 
 	///////////////////////////////////////////////////////////////////////////
 	// Post processing pass(es)
@@ -462,6 +465,7 @@ void display()
 	// 3. Bind the framebuffer to texture unit 0
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, cameraFBO.colorTextureTarget);
+
 	// 4. Draw a quad over the entire viewport
 	labhelper::drawFullScreenQuad();
 
