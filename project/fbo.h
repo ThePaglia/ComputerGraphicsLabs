@@ -4,7 +4,7 @@
 class FboInfo {
 public:
 	GLuint framebufferId;
-	std::vector<GLuint> colorTextureTargets; 
+	std::vector<GLuint> colorTextureTargets;
 	GLuint depthBuffer;
 	int width;
 	int height;
@@ -12,7 +12,7 @@ public:
 	GLenum colorTargetType = GL_RGBA16F;
 
 	FboInfo(int numberOfColorBuffers = 1);
-		
+
 	void resize(int w, int h);
 	bool checkFramebufferComplete(void);
 };

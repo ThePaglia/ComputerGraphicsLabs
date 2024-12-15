@@ -77,13 +77,25 @@ namespace pathtracer
 		// Get the intersection information from the ray
 		///////////////////////////////////////////////////////////////////
 		Intersection hit = getIntersection(current_ray);
+
 		///////////////////////////////////////////////////////////////////
 		// Create a Material tree for evaluating brdfs and calculating
 		// sample directions.
 		///////////////////////////////////////////////////////////////////
+		//Diffuse diffuse(hit.material->m_color);
+		//BTDF& mat = diffuse;
 
+		// Task 3: Blinn-Phong Microfacet BRDF
 		Diffuse diffuse(hit.material->m_color);
-		BTDF& mat = diffuse;
+		MicrofacetBRDF microfacet(hit.material->m_shininess);
+		DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
+		//BSDF& mat = dielectric;
+
+		// Task 4
+		MetalBSDF metal(&microfacet, hit.material->m_color, hit.material->m_fresnel);
+		BSDFLinearBlend metal_blend(hit.material->m_metalness, &metal, &dielectric);
+		BSDF& mat = metal_blend;
+
 		///////////////////////////////////////////////////////////////////
 		// Calculate Direct Illumination from light.
 		///////////////////////////////////////////////////////////////////
@@ -94,6 +106,18 @@ namespace pathtracer
 			vec3 wi = normalize(point_light.position - hit.position);
 			L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
 		}
+
+		// Task 2: Shadows
+		{
+			Ray shadowRay;
+			shadowRay.o = hit.position + hit.shading_normal * EPSILON;
+			shadowRay.d = normalize(point_light.position - hit.position);
+			if (occluded(shadowRay))
+			{
+				L = vec3(0.0f);
+			}
+		}
+
 		// Return the final outgoing radiance for the primary ray
 		return L;
 	}
@@ -135,10 +159,16 @@ namespace pathtracer
 				// the current pixel on a virtual screen.
 				vec2 screenCoord = vec2(float(x) / float(rendered_image.width),
 					float(y) / float(rendered_image.height));
+
+				// Task 1: Random Direction
+				screenCoord.x += (randf()) / float(rendered_image.width);
+				screenCoord.y += (randf()) / float(rendered_image.height);
+
 				// Calculate direction
 				vec4 viewCoord = vec4(screenCoord.x * 2.0f - 1.0f, screenCoord.y * 2.0f - 1.0f, 1.0f, 1.0f);
 				vec3 p = homogenize(inverse(P * V) * viewCoord);
 				primaryRay.d = normalize(p - camera_pos);
+
 				// Intersect ray with scene
 				if (intersect(primaryRay))
 				{

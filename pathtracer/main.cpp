@@ -1,4 +1,3 @@
-
 #include <GL/glew.h>
 #include <stb_image.h>
 #include <chrono>
@@ -220,8 +219,8 @@ void initialize()
 	// Load .obj models to scene
 	///////////////////////////////////////////////////////////////////////////
 	loadScenes();
-	changeScene("Ship");
-	//changeScene("Sphere");
+	//changeScene("Ship");
+	changeScene("Sphere");
 	//changeScene("Refractions");
 
 

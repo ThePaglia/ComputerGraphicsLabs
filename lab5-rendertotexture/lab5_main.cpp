@@ -407,11 +407,10 @@ void display()
 		glUseProgram(verticalBlurShader);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, horizontalBlurFBO.colorTextureTarget);
-		
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, verticalBlurFBO.colorTextureTarget); 
-		labhelper::drawFullScreenQuad();
 
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, verticalBlurFBO.colorTextureTarget);
+		labhelper::drawFullScreenQuad();
 	}
 
 	// Task 7 Bloom

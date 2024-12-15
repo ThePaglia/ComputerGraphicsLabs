@@ -36,9 +36,22 @@ namespace pathtracer
 		return r;
 	}
 
+	// Task 3
 	vec3 MicrofacetBRDF::f(const vec3& wi, const vec3& wo, const vec3& n) const
 	{
-		return vec3(0.0f);
+		vec3 wh = normalize(wi + wo);
+		// Prevents edge cases where there's a division by 0
+		float ndotwh = max(0.0001f, dot(n, wh));
+		float ndotwo = max(0.0001f, dot(n, wo));
+		float ndotwi = max(0.0001f, dot(n, wi));
+		// Fresnel uses the angle between wh and wi/wo and it's the same either using wo or wi.
+		float wodotwh = max(0.0001f, dot(wo, wh));
+
+		float D = ((shininess + 2.0f) / (2.0f * M_PI)) * pow(ndotwh, shininess);
+		float G = min(1.0f, min(2.0f * ndotwh * ndotwo / wodotwh, 2.0f * ndotwh * ndotwi / wodotwh));
+		float denom = 4.0f * clamp(ndotwo * ndotwi, 0.0001f, 1.0f);
+
+		return vec3(D * G / denom);
 	}
 
 	WiSample MicrofacetBRDF::sample_wi(const vec3& wo, const vec3& n) const
@@ -49,14 +62,22 @@ namespace pathtracer
 		return r;
 	}
 
+	// Task 3
 	float BSDF::fresnel(const vec3& wi, const vec3& wo) const
 	{
-		return 0.0f;
+		vec3 wh = normalize(wi + wo);
+		// Fresnel uses the angle between wh and wi/wo and it's the same either using wo or wi.
+		float wodotwh = max(0.0001f, dot(wo, wh));
+
+		return BSDF::R0 + (1.0f - BSDF::R0) * pow(1.0f - wodotwh, 5.0f);
 	}
 
+	// Task 3
 	vec3 DielectricBSDF::f(const vec3& wi, const vec3& wo, const vec3& n) const
 	{
-		return vec3(0);
+		const BRDF* brdf = reflective_material;
+		const BTDF* btdf = transmissive_material;
+		return fresnel(wi, wo) * brdf->f(wi, wo, n) + (1.0f - fresnel(wi, wo)) * btdf->f(wi, wo, n);
 	}
 
 	WiSample DielectricBSDF::sample_wi(const vec3& wo, const vec3& n) const
@@ -69,9 +90,11 @@ namespace pathtracer
 		return r;
 	}
 
+	// Task 4
 	vec3 MetalBSDF::f(const vec3& wi, const vec3& wo, const vec3& n) const
 	{
-		return vec3(0);
+		const BRDF* brdf = reflective_material;
+		return color * brdf->f(wi, wo, n);
 	}
 
 	WiSample MetalBSDF::sample_wi(const vec3& wo, const vec3& n) const
@@ -82,9 +105,10 @@ namespace pathtracer
 		return r;
 	}
 
+	// Task 4
 	vec3 BSDFLinearBlend::f(const vec3& wi, const vec3& wo, const vec3& n) const
 	{
-		return vec3(0.0);
+		return (1.0f - w) * bsdf0->f(wi, wo, n) + w * bsdf1->f(wi, wo, n);
 	}
 
 	WiSample BSDFLinearBlend::sample_wi(const vec3& wo, const vec3& n) const
