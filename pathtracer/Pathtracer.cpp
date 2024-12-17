@@ -72,6 +72,8 @@ namespace pathtracer
 		vec3 L = vec3(0.0f);
 		vec3 path_throughput = vec3(1.0);
 		Ray current_ray = primary_ray;
+		
+		/* Before Task 5
 
 		///////////////////////////////////////////////////////////////////
 		// Get the intersection information from the ray
@@ -82,11 +84,10 @@ namespace pathtracer
 		// Create a Material tree for evaluating brdfs and calculating
 		// sample directions.
 		///////////////////////////////////////////////////////////////////
-		//Diffuse diffuse(hit.material->m_color);
-		//BTDF& mat = diffuse;
-
-		// Task 3: Blinn-Phong Microfacet BRDF
 		Diffuse diffuse(hit.material->m_color);
+		//BTDF& mat = diffuse;
+		
+		// Task 3: Blinn-Phong Microfacet BRDF
 		MicrofacetBRDF microfacet(hit.material->m_shininess);
 		DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
 		//BSDF& mat = dielectric;
@@ -104,18 +105,88 @@ namespace pathtracer
 			const float falloff_factor = 1.0f / (distance_to_light * distance_to_light);
 			vec3 Li = point_light.intensity_multiplier * point_light.color * falloff_factor;
 			vec3 wi = normalize(point_light.position - hit.position);
-			L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
-		}
-
-		// Task 2: Shadows
-		{
+			
+			// Task 2: Shadows
 			Ray shadowRay;
 			shadowRay.o = hit.position + hit.shading_normal * EPSILON;
 			shadowRay.d = normalize(point_light.position - hit.position);
-			if (occluded(shadowRay))
+			
+			if (!occluded(shadowRay))
 			{
-				L = vec3(0.0f);
+				L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
 			}
+		}
+
+		*/
+
+		// Task 5
+		for (int bounces = 0; bounces < settings.max_bounces; bounces++) {
+			// Get the intersection information from the ray
+			Intersection hit = getIntersection(current_ray);
+
+			// Create a material tree
+			Diffuse diffuse(hit.material->m_color);
+			MicrofacetBRDF microfacet(hit.material->m_shininess);
+			DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
+			MetalBSDF metal(&microfacet, hit.material->m_color, hit.material->m_fresnel);
+			BSDFLinearBlend metal_blend(hit.material->m_metalness, &metal, &dielectric);
+			BSDF& mat = metal_blend;
+
+			// Direct Illumination
+			{
+				const float distance_to_light = length(point_light.position - hit.position);
+				const float falloff_factor = 1.0f / (distance_to_light * distance_to_light);
+				vec3 Li = point_light.intensity_multiplier * point_light.color * falloff_factor;
+				vec3 wi = normalize(point_light.position - hit.position);
+
+				// Task 2: Shadows
+				Ray shadowRay;
+				shadowRay.o = hit.position + hit.shading_normal * EPSILON;
+				shadowRay.d = normalize(point_light.position - hit.position);
+
+				if (!occluded(shadowRay))
+				{
+					L += path_throughput * mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
+				}
+			}
+
+			// Emitted radiance from intersection
+			L += path_throughput * hit.material->m_emission;
+
+			// Sample an incoming direction (and the brdf and pdf for that direction)
+			WiSample sample = mat.sample_wi(hit.wo, hit.shading_normal);
+			vec3 wi = sample.wi;
+			vec3 f = sample.f;
+			float pdf = sample.pdf;
+
+			// If the pdf is too close to zero, it means that the current path is extremely
+			// unlikely to exist, so we break to avoid numerical instability
+			if (pdf < EPSILON) {
+				return L;
+			}
+
+			float cosineTerm = abs(dot(wi, hit.shading_normal));
+
+			path_throughput = path_throughput * (f * cosineTerm) / pdf;
+
+			// If pathThroughput is zero there is no need to continue, as no more light comes from this path
+			if (path_throughput == vec3(0.0f)) {
+				return L;
+			}
+
+			// Create next ray on path (existing instance can't be reused)
+			Ray next_ray;
+			// Bias the ray slightly to avoid self-intersection 
+			next_ray.o = hit.position + hit.geometry_normal * EPSILON;
+			next_ray.d = wi;
+
+			// Intersect the new ray and if there is no intersection just
+			// add environment contribution and finish
+			if (!intersect(next_ray)) {
+				return L + path_throughput * Lenvironment(next_ray.d);
+			}
+			// Otherwise, reiterate for the new intersection
+			current_ray = next_ray;
 		}
 
 		// Return the final outgoing radiance for the primary ray
