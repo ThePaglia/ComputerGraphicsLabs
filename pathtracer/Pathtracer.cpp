@@ -72,7 +72,7 @@ namespace pathtracer
 		vec3 L = vec3(0.0f);
 		vec3 path_throughput = vec3(1.0);
 		Ray current_ray = primary_ray;
-		
+
 		/* Before Task 5
 
 		///////////////////////////////////////////////////////////////////
@@ -86,7 +86,7 @@ namespace pathtracer
 		///////////////////////////////////////////////////////////////////
 		Diffuse diffuse(hit.material->m_color);
 		//BTDF& mat = diffuse;
-		
+
 		// Task 3: Blinn-Phong Microfacet BRDF
 		MicrofacetBRDF microfacet(hit.material->m_shininess);
 		DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
@@ -105,12 +105,12 @@ namespace pathtracer
 			const float falloff_factor = 1.0f / (distance_to_light * distance_to_light);
 			vec3 Li = point_light.intensity_multiplier * point_light.color * falloff_factor;
 			vec3 wi = normalize(point_light.position - hit.position);
-			
+
 			// Task 2: Shadows
 			Ray shadowRay;
 			shadowRay.o = hit.position + hit.shading_normal * EPSILON;
 			shadowRay.d = normalize(point_light.position - hit.position);
-			
+
 			if (!occluded(shadowRay))
 			{
 				L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
@@ -141,12 +141,45 @@ namespace pathtracer
 
 				// Task 2: Shadows
 				Ray shadowRay;
-				shadowRay.o = hit.position + hit.shading_normal * EPSILON;
+				shadowRay.o = hit.position + hit.geometry_normal * EPSILON;
 				shadowRay.d = normalize(point_light.position - hit.position);
 
 				if (!occluded(shadowRay))
 				{
 					L += path_throughput * mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
+				}
+			}
+
+			// Area lights
+			for (const DiscLight& discLight : disc_lights) {
+				// Sample a point on the disc light
+				// Create random point in local disc coordinates (square root ensures unifor distribution over the area of the disc)
+				float r = sqrt(randf());
+				float theta = 2.0f * M_PI * randf();
+				// Create a point on the disc by converting coordinates (r, theta) to coordinate (x,y) on the disc
+				vec3 localPoint = vec3(r * cos(theta), r * sin(theta), 0.0f);
+
+				// Transform to world space
+				// Convert local disc coordinates to world coordinates, aligning the disc with its direction
+				mat3 tbn = tangentSpace(discLight.direction);
+				// Transforms the local point to world space and scales it by the disc's radius, then translates it to the disc's position
+				vec3 light_sample = discLight.position + (tbn * localPoint) * discLight.radius;
+
+				vec3 wi = normalize(light_sample - hit.position);
+				float distance_to_light = length(light_sample - hit.position);
+				float falloff_factor = 1.0f / (distance_to_light * distance_to_light);
+				vec3 Li = discLight.intensity_multiplier * discLight.color * falloff_factor;
+
+				Ray shadowRay;
+				shadowRay.o = hit.position + hit.geometry_normal * EPSILON;
+				shadowRay.d = wi;
+
+				if (!occluded(shadowRay))
+				{
+					float cos_theta = std::max(0.0f, dot(wi, hit.shading_normal));
+					float cos_theta_light = std::max(0.0f, dot(-wi, discLight.direction));
+					float solid_angle = (cos_theta_light * discLight.radius * discLight.radius) / (distance_to_light * distance_to_light);
+					L += path_throughput * mat.f(wi, hit.wo, hit.shading_normal) * Li * cos_theta * solid_angle;
 				}
 			}
 
@@ -176,7 +209,7 @@ namespace pathtracer
 
 			// Create next ray on path (existing instance can't be reused)
 			Ray next_ray;
-			// Bias the ray slightly to avoid self-intersection 
+			// Bias the ray slightly to avoid self-intersection
 			next_ray.o = hit.position + hit.geometry_normal * EPSILON;
 			next_ray.d = wi;
 

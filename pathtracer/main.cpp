@@ -189,12 +189,12 @@ void initialize()
 	pathtracer::point_light.color = vec3(1.f, 1.f, 1.f);
 	pathtracer::point_light.position = vec3(10.0f, 25.0f, 20.0f);
 
-	// float intensity_multiplier;
-	// vec3 color;
-	// vec3 position;
-	// vec3 direction;
-	// float radius;
-	/*
+	 float intensity_multiplier;
+	 vec3 color;
+	 vec3 position;
+	 vec3 direction;
+	 float radius;
+	
 	pathtracer::disc_lights.push_back( pathtracer::DiscLight{
 									   1000,
 									   {1, 0.8, 0},
@@ -207,7 +207,7 @@ void initialize()
 									   {-10, 20, -5},
 									   glm::normalize(-glm::vec3(-10, 20, -5)),
 									   10.0 } );
-	*/
+	
 
 	///////////////////////////////////////////////////////////////////////////
 	// Load environment map
